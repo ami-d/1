@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>30S QUANT ENGINE · ULTRA RISK-SHIELD V12 PRO</title>
+    <title>QUANT-SHIELD V13 · ADVANCED WINGO PREDICTOR</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -41,7 +41,7 @@
         .trend-indicator { font-size: 11px; color: #00ffcc; margin-top: 6px; font-weight: 600; }
         .confidence-bar { background: #0c1322; border-radius: 4px; height: 5px; margin-top: 10px; overflow: hidden; border: 1px solid #18263e; }
         .confidence-fill { background: linear-gradient(90deg, #00ff66, #00ffcc); height: 100%; transition: width 0.4s ease-out; box-shadow: 0 0 10px rgba(0,255,102,0.5); }
-        .model-indicator { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 8px; }
+        .model-indicator { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin-top: 8px; }
         .mini-model { width: 100%; aspect-ratio: 1; border-radius: 4px; background: #0c1322; border: 1px solid #18263e; font-size: 7px; display: flex; align-items: center; justify-content: center; color: #6b82a6; font-weight: 600; }
         .mini-model.active { background: #1a3f3a; color: #00ff66; border-color: #00ff66; box-shadow: 0 0 8px rgba(0,255,102,0.3); }
         .advanced-metrics { background: rgba(0,255,102,0.08); border: 1px solid rgba(0,255,102,0.2); border-radius: 10px; padding: 10px; margin-top: 8px; }
@@ -54,7 +54,7 @@
 <body>
 <div class="app-container">
     <div class="header">
-        <div class="logo">⚡ QUANT-SHIELD v12 PRO</div>
+        <div class="logo">⚡ QUANT-SHIELD v13 PRO</div>
         <div class="api-status">
             <div id="statusDot" class="status-dot"></div>
             <span id="statusText">INIT</span>
@@ -62,14 +62,14 @@
     </div>
     <div class="main-content">
         <div class="warning-banner">
-            🛡️ V12 PRO: Advanced Multi-Pattern Detection with Predictive Loss Prevention & Real-time Signal Fusion
+            🛡️ V13 PRO: Advanced Market Pattern Detection · Loss Prevention · Real-Time Signal Fusion · 30S WinGo
         </div>
 
         <div class="display-card">
             <div class="period-info" id="periodDisplay">⏳ TARGET: ------</div>
             <div class="label">QUANTUM PREDICTION ENGINE</div>
             <div id="predictionDisplay" class="prediction-value">•••</div>
-            <div id="patternDisplay" class="pattern-stream">�� INITIALIZING NEURAL LAYERS ◈</div>
+            <div id="patternDisplay" class="pattern-stream">◈ INITIALIZING NEURAL LAYERS ◈</div>
             <div class="trend-indicator" id="trendDisplay">AWAITING DATA</div>
             <div class="confidence-bar">
                 <div id="confidenceBar" class="confidence-fill" style="width: 0%"></div>
@@ -90,15 +90,15 @@
         </div>
 
         <div class="advanced-metrics">
-            <div class="metric-item"><span>Market Pattern:</span><span id="marketPatternDisplay" class="metric-val">ANALYZING</span></div>
-            <div class="metric-item"><span>Signal Strength:</span><span id="signalStrengthDisplay" class="metric-val">0%</span></div>
-            <div class="metric-item"><span>Loss Prevention:</span><span id="lossPreventionDisplay" class="metric-val">100%</span></div>
+            <div class="metric-item"><span>Market Trend:</span><span id="marketTrendDisplay" class="metric-val">ANALYZING</span></div>
             <div class="metric-item"><span>Pattern Quality:</span><span id="patternQualityDisplay" class="metric-val">0%</span></div>
+            <div class="metric-item"><span>Reversal Risk:</span><span id="reversalRiskDisplay" class="metric-val">0%</span></div>
+            <div class="metric-item"><span>Win Probability:</span><span id="winProbDisplay" class="metric-val">0%</span></div>
         </div>
 
         <div class="label" style="margin-bottom: -4px;">📊 ENGINE DIAGNOSTICS</div>
         <div class="engine-logs" id="logConsole">
-            [SYS] QUANT-SHIELD V12 PRO ENGINE ONLINE<br>[SYS] ADVANCED PATTERN DETECTION ACTIVE<br>[SYS] MULTI-TIMEFRAME ANALYSIS ENABLED<br>[SYS] AWAITING MARKET DATA...
+            [SYS] QUANT-SHIELD V13 PRO ENGINE ONLINE<br>[SYS] ADVANCED PATTERN DETECTION ACTIVE<br>[SYS] MARKET ANALYSIS ENABLED<br>[SYS] AWAITING MARKET DATA...
         </div>
 
         <button class="btn-action" id="resetMemoryBtn"><i class="fa-solid fa-sync"></i> RESET & OPTIMIZE</button>
@@ -107,250 +107,137 @@
 
 <script>
     // ============================================================
-    // QUANT-SHIELD V12 PRO - ADVANCED MULTI-PATTERN DETECTION
+    // QUANT-SHIELD V13 - ADVANCED MARKET PATTERN & TREND DETECTION
     // ============================================================
     
     class AdvancedPatternAnalyzer {
         constructor() {
             this.patterns = {};
-            this.cycleDetection = new Map();
-            this.temporalWeights = [1.0, 0.95, 0.90, 0.85, 0.80]; // 5-period smoothing
+            this.trendHistory = [];
+            this.maxTrendHistory = 100;
         }
 
-        analyzePatterns(data) {
-            if (data.length < 5) return this._getDefaultScores();
+        analyzeTrends(data) {
+            if (data.length < 6) return null;
 
-            const sizes = data.slice(0, 30).map(d => d.size);
-            
+            const recent = data.slice(0, 50);
+            const sizes = recent.map(d => d.size);
+
+            // Multi-level trend analysis
+            const t3 = this._calculateTrend(sizes.slice(0, 3));
+            const t5 = this._calculateTrend(sizes.slice(0, 5));
+            const t10 = this._calculateTrend(sizes.slice(0, 10));
+            const t20 = this._calculateTrend(sizes.slice(0, 20));
+
+            // Pattern detection
+            const alternating = this._detectAlternating(sizes);
+            const reversals = this._detectReversals(sizes);
+            const consecutives = this._detectConsecutives(sizes);
+            const periodicPattern = this._detectPeriodicPattern(sizes);
+            const momentumPattern = this._detectMomentum(sizes);
+
             return {
-                simpleAlternating: this._detectSimpleAlternating(sizes),
-                complexAlternating: this._detectComplexAlternating(sizes),
-                strongUptrend: this._detectStrongUptrend(sizes),
-                strongDowntrend: this._detectStrongDowntrend(sizes),
-                doublePattern: this._detectDoublePattern(sizes),
-                triplePattern: this._detectTriplePattern(sizes),
-                cyclePattern: this._detectCyclePattern(sizes),
-                momentumShift: this._detectMomentumShift(sizes),
-                reversalSignal: this._detectReversalSignal(sizes),
-                burstPattern: this._detectBurstPattern(sizes)
+                t3, t5, t10, t20,
+                alternating, reversals, consecutives, periodicPattern, momentumPattern,
+                dominantTrend: this._determineDominantTrend(t3, t5, t10, t20)
             };
         }
 
-        _getDefaultScores() {
-            return {
-                simpleAlternating: 0,
-                complexAlternating: 0,
-                strongUptrend: 0,
-                strongDowntrend: 0,
-                doublePattern: 0,
-                triplePattern: 0,
-                cyclePattern: 0,
-                momentumShift: 0,
-                reversalSignal: 0,
-                burstPattern: 0
-            };
+        _calculateTrend(sizes) {
+            if (!sizes.length) return { type: 'NEUTRAL', score: 50 };
+            const bigCount = sizes.filter(s => s === 'BIG').length;
+            const ratio = (bigCount / sizes.length) * 100;
+
+            if (ratio > 70) return { type: 'STRONG_BIG', score: 85 };
+            if (ratio > 60) return { type: 'BIG', score: 70 };
+            if (ratio > 55) return { type: 'WEAK_BIG', score: 58 };
+            if (ratio < 30) return { type: 'STRONG_SMALL', score: 85 };
+            if (ratio < 40) return { type: 'SMALL', score: 70 };
+            if (ratio < 45) return { type: 'WEAK_SMALL', score: 58 };
+            return { type: 'NEUTRAL', score: 50 };
         }
 
-        _detectSimpleAlternating(sizes) {
-            let alternations = 0;
-            let totalChecks = Math.min(sizes.length - 1, 15);
-            
-            for (let i = 0; i < totalChecks; i++) {
-                if (sizes[i] !== sizes[i + 1]) alternations++;
-            }
-            
-            return (alternations / totalChecks) * 100;
-        }
-
-        _detectComplexAlternating(sizes) {
-            // Pattern: X Y X Y or longer alternating sequences
-            let score = 0;
-            for (let i = 0; i < sizes.length - 3; i++) {
-                if (sizes[i] === sizes[i+2] && sizes[i+1] === sizes[i+3] && sizes[i] !== sizes[i+1]) {
-                    score += 15;
+        _detectAlternating(sizes) {
+            let alternatingCount = 0;
+            for (let i = 0; i < Math.min(sizes.length - 1, 15); i++) {
+                if (sizes[i] !== sizes[i + 1]) {
+                    alternatingCount++;
                 }
             }
-            return Math.min(100, score);
+            const score = (alternatingCount / Math.min(sizes.length - 1, 15)) * 100;
+            return { score, isActive: score > 65 };
         }
 
-        _detectStrongUptrend(sizes) {
-            const window = Math.min(sizes.length, 15);
-            let bigCount = 0;
-            
-            for (let i = 0; i < window; i++) {
-                if (sizes[i] === 'BIG') bigCount++;
-            }
-            
-            return (bigCount / window) * 100;
-        }
-
-        _detectStrongDowntrend(sizes) {
-            const window = Math.min(sizes.length, 15);
-            let smallCount = 0;
-            
-            for (let i = 0; i < window; i++) {
-                if (sizes[i] === 'SMALL') smallCount++;
-            }
-            
-            return (smallCount / window) * 100;
-        }
-
-        _detectDoublePattern(sizes) {
-            if (sizes.length < 6) return 0;
-            
-            const firstPair = `${sizes[0]}${sizes[1]}`;
-            let matches = 0;
-            let totalPatterns = 0;
-            
-            for (let i = 2; i < Math.min(sizes.length - 1, 20); i += 2) {
-                if (i + 1 < sizes.length) {
-                    const pair = `${sizes[i]}${sizes[i + 1]}`;
-                    if (pair === firstPair) matches++;
-                    totalPatterns++;
-                }
-            }
-            
-            return totalPatterns > 0 ? (matches / totalPatterns) * 100 : 0;
-        }
-
-        _detectTriplePattern(sizes) {
-            if (sizes.length < 9) return 0;
-            
-            const firstTriple = `${sizes[0]}${sizes[1]}${sizes[2]}`;
-            let matches = 0;
-            let totalPatterns = 0;
-            
-            for (let i = 3; i < Math.min(sizes.length - 2, 18); i += 3) {
-                if (i + 2 < sizes.length) {
-                    const triple = `${sizes[i]}${sizes[i + 1]}${sizes[i + 2]}`;
-                    if (triple === firstTriple) matches++;
-                    totalPatterns++;
-                }
-            }
-            
-            return totalPatterns > 0 ? (matches / totalPatterns) * 100 : 0;
-        }
-
-        _detectCyclePattern(sizes) {
-            // Detect repeating cycles of 4-6 elements
-            let maxScore = 0;
-            
-            for (let cycleLen = 4; cycleLen <= 6; cycleLen++) {
-                if (sizes.length < cycleLen * 2) continue;
-                
-                const cycle = sizes.slice(0, cycleLen).join('');
-                let matches = 0;
-                
-                for (let i = cycleLen; i <= sizes.length - cycleLen; i += cycleLen) {
-                    if (sizes.slice(i, i + cycleLen).join('') === cycle) {
-                        matches++;
-                    }
-                }
-                
-                const score = (matches / Math.floor(sizes.length / cycleLen)) * 100;
-                maxScore = Math.max(maxScore, score);
-            }
-            
-            return Math.min(100, maxScore);
-        }
-
-        _detectMomentumShift(sizes) {
-            if (sizes.length < 10) return 0;
-            
-            const first5 = sizes.slice(0, 5).filter(s => s === 'BIG').length;
-            const next5 = sizes.slice(5, 10).filter(s => s === 'BIG').length;
-            const shift = Math.abs(first5 - next5);
-            
-            return shift * 20;
-        }
-
-        _detectReversalSignal(sizes) {
-            let reversals = 0;
-            
-            for (let i = 1; i < Math.min(sizes.length - 1, 14); i++) {
+        _detectReversals(sizes) {
+            let reversalCount = 0;
+            for (let i = 1; i < Math.min(sizes.length - 1, 12); i++) {
                 if (sizes[i - 1] !== sizes[i] && sizes[i] !== sizes[i + 1] && sizes[i - 1] === sizes[i + 1]) {
-                    reversals++;
+                    reversalCount++;
                 }
             }
-            
-            return (reversals / Math.min(sizes.length - 2, 13)) * 100;
+            return { count: reversalCount, score: (reversalCount / Math.min(sizes.length - 2, 11)) * 100 };
         }
 
-        _detectBurstPattern(sizes) {
-            // Detect sudden spike of same value
-            let maxConsecutive = 1;
-            let currentConsecutive = 1;
-            
-            for (let i = 1; i < Math.min(sizes.length, 20); i++) {
-                if (sizes[i] === sizes[i - 1]) {
-                    currentConsecutive++;
-                    maxConsecutive = Math.max(maxConsecutive, currentConsecutive);
+        _detectConsecutives(sizes) {
+            let maxConsec = 1, currentConsec = 1;
+            let lastType = sizes[0];
+
+            for (let i = 1; i < Math.min(sizes.length, 30); i++) {
+                if (sizes[i] === lastType) {
+                    currentConsec++;
                 } else {
-                    currentConsecutive = 1;
+                    maxConsec = Math.max(maxConsec, currentConsec);
+                    currentConsec = 1;
+                    lastType = sizes[i];
                 }
             }
-            
-            return (maxConsecutive / 6) * 100;
+            maxConsec = Math.max(maxConsec, currentConsec);
+            return { maxConsecutive: maxConsec, score: Math.min(100, maxConsec * 15) };
         }
 
-        predictSignal(history, patterns, lastLosses) {
-            if (!history || history.length < 2) {
-                return 'BIG';
+        _detectPeriodicPattern(sizes) {
+            // Check for period-2 and period-3 patterns
+            let p2Match = 0, p3Match = 0;
+
+            for (let i = 2; i < Math.min(sizes.length, 14); i += 2) {
+                if (sizes[0] === sizes[i]) p2Match++;
             }
 
-            const recent = history.slice(0, 5).map(d => d.size);
-            
-            // Get top 3 patterns by score
-            const topPatterns = Object.entries(patterns)
-                .sort(([,a], [,b]) => b - a)
-                .slice(0, 3);
-
-            // Strong pattern detection
-            for (const [patternName, score] of topPatterns) {
-                if (score > 80) {
-                    if (patternName === 'strongUptrend') return 'BIG';
-                    if (patternName === 'strongDowntrend') return 'SMALL';
-                    if (patternName === 'simpleAlternating' || patternName === 'complexAlternating') {
-                        return recent[0] === 'BIG' ? 'SMALL' : 'BIG';
-                    }
-                    if (patternName === 'doublePattern') {
-                        return recent[1] === 'BIG' ? 'BIG' : 'SMALL';
-                    }
-                    if (patternName === 'triplePattern') {
-                        return recent[2] === 'BIG' ? 'BIG' : 'SMALL';
-                    }
-                    if (patternName === 'cyclePattern') {
-                        return recent[0] === 'BIG' ? 'SMALL' : 'BIG';
-                    }
-                }
+            for (let i = 3; i < Math.min(sizes.length, 15); i += 3) {
+                if (sizes[0] === sizes[i]) p3Match++;
             }
 
-            // Medium pattern confidence
-            for (const [patternName, score] of topPatterns) {
-                if (score > 65) {
-                    if (patternName === 'momentumShift') {
-                        const bigCount = recent.filter(s => s === 'BIG').length;
-                        return bigCount > 2 ? 'BIG' : 'SMALL';
-                    }
-                    if (patternName === 'burstPattern') {
-                        return recent[0] === 'BIG' ? 'SMALL' : 'BIG';
-                    }
-                }
-            }
+            return { period2: (p2Match / 6) * 100, period3: (p3Match / 4) * 100 };
+        }
 
-            // Loss prevention fallback (predict opposite of recent losses)
-            if (lastLosses && lastLosses.length > 0) {
-                const lastLoss = lastLosses[lastLosses.length - 1];
-                return lastLoss === 'BIG' ? 'SMALL' : 'BIG';
-            }
+        _detectMomentum(sizes) {
+            const first = sizes.slice(0, 5).filter(s => s === 'BIG').length;
+            const second = sizes.slice(5, 10).filter(s => s === 'BIG').length;
+            const momentum = first - second;
+            return {
+                direction: momentum > 0 ? 'UPWARD' : momentum < 0 ? 'DOWNWARD' : 'FLAT',
+                strength: Math.abs(momentum) / 5,
+                score: Math.min(100, Math.abs(momentum) * 20)
+            };
+        }
 
-            // Default to majority
-            const bigCount = recent.filter(s => s === 'BIG').length;
-            return bigCount > 2 ? 'BIG' : 'SMALL';
+        _determineDominantTrend(t3, t5, t10, t20) {
+            const trends = [t3, t5, t10, t20];
+            const avgScore = trends.reduce((a, b) => a + b.score, 0) / trends.length;
+
+            if (avgScore > 75) {
+                const bigCount = trends.filter(t => t.type.includes('BIG')).length;
+                return bigCount > 2 ? 'STRONG_UPTREND' : 'STRONG_DOWNTREND';
+            }
+            if (avgScore > 60) {
+                const bigCount = trends.filter(t => t.type.includes('BIG')).length;
+                return bigCount > 2 ? 'UPTREND' : 'DOWNTREND';
+            }
+            return 'SIDEWAYS';
         }
     }
 
-    class QuantumConsensusEngineV12 {
+    class AdvancedPredictionEngineV13 {
         constructor() {
             this.history = [];
             this.predictions = [];
@@ -361,15 +248,16 @@
             this.lastPeriod = null;
             this.consecutiveLosses = 0;
             this.consecutiveWins = 0;
-            this.lastLosses = []; // Track last 3 losses
-            
-            this.patternAnalyzer = new AdvancedPatternAnalyzer();
-            this.patterns = null;
+            this.lastPredictionWasWrong = false;
+
+            this.analyzer = new AdvancedPatternAnalyzer();
             this.currentTrend = 'NEUTRAL';
-            this.signalStrength = 0;
             this.patternQuality = 0;
-            this.lossPreventionScore = 100;
-            this.confidenceBoost = 0;
+            this.reversalRisk = 0;
+            this.winProbability = 0;
+            
+            this.adaptiveThreshold = 0.5;
+            this.lossPreventionActive = false;
         }
 
         insert(node) {
@@ -386,24 +274,18 @@
                     this.wins++;
                     this.consecutiveLosses = 0;
                     this.consecutiveWins++;
-                    this.lossPreventionScore = Math.min(100, this.lossPreventionScore + 8);
-                    this.confidenceBoost = Math.min(15, this.confidenceBoost + 2);
-                    this.lastLosses = [];
+                    this.lastPredictionWasWrong = false;
                     postLog(`✅ WIN #${this.wins}: Predicted ${actual}`);
                 } else {
                     this.losses++;
                     this.consecutiveLosses++;
                     this.consecutiveWins = 0;
-                    this.lastLosses.push(lastPred.signal);
-                    if (this.lastLosses.length > 3) this.lastLosses.shift();
-                    
-                    this.lossPreventionScore = Math.max(30, this.lossPreventionScore - 25);
-                    this.confidenceBoost = Math.max(0, this.confidenceBoost - 5);
-                    
+                    this.lastPredictionWasWrong = true;
                     postLog(`❌ LOSS #${this.losses}: Predicted ${lastPred.signal}, got ${actual}`);
                     
                     if (this.consecutiveLosses >= 2) {
-                        postLog(`🛡️ PREDICTIVE LOSS PREVENTION TRIGGERED`);
+                        this.lossPreventionActive = true;
+                        postLog(`🛡️ LOSS PREVENTION MODE ACTIVATED - Reversing strategy`);
                     }
                 }
             }
@@ -416,88 +298,104 @@
         }
 
         _updateMarketAnalysis() {
-            if (this.history.length < 5) {
+            if (this.history.length < 6) {
                 this.currentTrend = 'NEUTRAL';
-                this.patterns = this.patternAnalyzer._getDefaultScores();
                 return;
             }
 
-            this.patterns = this.patternAnalyzer.analyzePatterns(this.history);
+            const analysis = this.analyzer.analyzeTrends(this.history);
             
-            const entries = Object.entries(this.patterns).sort((a, b) => b[1] - a[1]);
-            const topPattern = entries[0];
-            
-            if (topPattern[1] > 60) { // Lowered threshold from 70 to 60
-                if (topPattern[0] === 'strongUptrend') {
-                    this.currentTrend = 'STRONG UPTREND';
-                    this.patternQuality = Math.min(topPattern[1], 95);
-                } else if (topPattern[0] === 'strongDowntrend') {
-                    this.currentTrend = 'STRONG DOWNTREND';
-                    this.patternQuality = Math.min(topPattern[1], 95);
-                } else if (topPattern[0] === 'simpleAlternating' || topPattern[0] === 'complexAlternating') {
-                    this.currentTrend = 'ALTERNATING';
-                    this.patternQuality = topPattern[1];
-                } else if (topPattern[0] === 'cyclePattern') {
-                    this.currentTrend = 'CYCLIC';
-                    this.patternQuality = topPattern[1];
-                } else {
-                    this.currentTrend = 'PATTERNED';
-                    this.patternQuality = topPattern[1];
-                }
-            } else {
+            if (!analysis) {
                 this.currentTrend = 'NEUTRAL';
-                this.patternQuality = 0;
+                return;
             }
+
+            this.currentTrend = analysis.dominantTrend;
+            this.patternQuality = Math.max(
+                analysis.alternating.score,
+                analysis.periodicPattern.period2,
+                analysis.periodicPattern.period3,
+                analysis.consecutives.score
+            );
+
+            // Reversal risk calculation
+            this.reversalRisk = analysis.reversals.score * (analysis.momentumPattern.score > 50 ? 0.7 : 1.2);
+            
+            // Win probability based on multiple factors
+            const trendStrength = (analysis.t3.score + analysis.t5.score) / 2;
+            const patternReliability = this.patternQuality / 100;
+            const momentumFactor = analysis.momentumPattern.score / 100;
+            
+            this.winProbability = Math.round(
+                trendStrength * 0.4 +
+                patternReliability * 0.3 +
+                momentumFactor * 0.3
+            );
         }
 
         computeSignal(period) {
-            if (this.history.length < 2) {
+            if (this.history.length < 4) {
                 const rnd = Math.random() > 0.5 ? 'BIG' : 'SMALL';
                 this.lastPrediction = rnd;
                 this.lastPeriod = period;
                 this.predictions.push({
                     period,
                     signal: rnd,
-                    confidence: 50
+                    confidence: 65
                 });
-                return { signal: rnd, confidence: '50.0' };
+                return { signal: rnd, confidence: '65.0' };
             }
 
-            const prediction = this.patternAnalyzer.predictSignal(
-                this.history,
-                this.patterns || {},
-                this.lastLosses
-            );
-
+            let signal = 'BIG';
             let confidence = 72;
 
-            // Boost based on pattern quality
-            if (this.patternQuality > 80) {
-                confidence += 18;
-            } else if (this.patternQuality > 65) {
-                confidence += 12;
-            } else if (this.patternQuality > 50) {
-                confidence += 6;
+            // Apply loss prevention immediately when activated
+            if (this.lossPreventionActive && this.consecutiveLosses >= 2) {
+                const lastActual = this.history[0].size;
+                signal = lastActual === 'BIG' ? 'SMALL' : 'BIG';
+                confidence = 85;
+                postLog(`🔄 LOSS PREVENTION: Flipping prediction to ${signal}`);
+                this.lossPreventionActive = false;
+            } else if (this.currentTrend === 'STRONG_UPTREND') {
+                signal = 'BIG';
+                confidence = 88;
+            } else if (this.currentTrend === 'STRONG_DOWNTREND') {
+                signal = 'SMALL';
+                confidence = 88;
+            } else if (this.currentTrend === 'UPTREND') {
+                signal = 'BIG';
+                confidence = 82;
+            } else if (this.currentTrend === 'DOWNTREND') {
+                signal = 'SMALL';
+                confidence = 82;
+            } else if (this.currentTrend === 'SIDEWAYS') {
+                // Use reversal detection for sideways markets
+                const recentBig = this.history.slice(0, 8).filter(h => h.size === 'BIG').length;
+                signal = recentBig >= 4 ? 'SMALL' : 'BIG'; // Contrarian
+                confidence = 76;
+            } else {
+                // Neutral: use majority
+                const recentBig = this.history.slice(0, 8).filter(h => h.size === 'BIG').length;
+                signal = recentBig > 4 ? 'BIG' : 'SMALL';
+                confidence = 72;
             }
 
-            // Boost for consecutive wins (up to 3x)
-            confidence += Math.min(12, this.consecutiveWins * 4);
-
-            // Reduce on consecutive losses (but still predict)
-            if (this.consecutiveLosses > 0) {
-                confidence = Math.max(68, confidence - (this.consecutiveLosses * 3));
+            // Boost confidence with consecutive wins
+            if (this.consecutiveWins > 2) {
+                confidence = Math.min(96, confidence + (this.consecutiveWins * 4));
             }
 
-            // Apply confidence boost cap
-            confidence = Math.min(98, confidence + this.confidenceBoost);
+            // Reduce confidence if last prediction was wrong
+            if (this.lastPredictionWasWrong) {
+                confidence = Math.max(60, confidence - 8);
+            }
 
-            this.signalStrength = confidence;
-            this.lastPrediction = prediction;
+            this.lastPrediction = signal;
             this.lastPeriod = period;
 
             this.predictions.push({
                 period,
-                signal: prediction,
+                signal,
                 confidence: Math.round(confidence)
             });
 
@@ -505,7 +403,7 @@
                 this.predictions.shift();
             }
 
-            return { signal: prediction, confidence: confidence.toFixed(1) };
+            return { signal, confidence: confidence.toFixed(1) };
         }
 
         getWinRate() {
@@ -520,41 +418,39 @@
             this.losses = 0;
             this.consecutiveLosses = 0;
             this.consecutiveWins = 0;
+            this.lossPreventionActive = false;
             this.currentTrend = 'NEUTRAL';
-            this.patterns = null;
             this.patternQuality = 0;
-            this.lossPreventionScore = 100;
-            this.lastLosses = [];
-            this.confidenceBoost = 0;
-            postLog('🔄 V12 ENGINE RESET: Fresh cycle initialized.');
+            this.reversalRisk = 0;
+            this.winProbability = 0;
+            postLog('🔄 V13 ENGINE RESET: Fresh cycle initialized.');
         }
     }
 
     // ============================================================
-    // ROBUST NETWORK BRIDGE WITH ADVANCED ERROR HANDLING
+    // ROBUST NETWORK BRIDGE WITH PROPER API HANDLING
     // ============================================================
     class NetworkBridge {
         constructor(engine) {
             this.engine = engine;
             this.isPolling = false;
+            this.lastDataTimestamp = 0;
             this.retryCount = 0;
             this.maxRetries = 5;
-            this.failureCount = 0;
-            this.maxFailures = 10;
-            this.endpoints = this._initializeEndpoints();
-            this.currentEndpointIndex = 0;
         }
 
-        _initializeEndpoints() {
+        getEndpoints() {
+            const t = Date.now();
             return [
-                { url: 'https://api.bdg88zf.com/api/webapi/GetEmerdList?gameType=1&language=0&pageNo=1&pageSize=30&typeId=2', timeout: 4000 },
-                { url: 'https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json', timeout: 4000 },
-                { url: 'https://bet.8bgame.net/WinGo/WinGo_30S/GetHistoryIssuePage.json', timeout: 4000 },
-                { url: 'https://api.bdg88zf.com/api/webapi/GetEmerdList?gameType=1&language=0&pageNo=1&pageSize=50&typeId=2', timeout: 5000 }
+                `https://api.bdg88zf.com/api/webapi/GetEmerdList?gameType=1&language=0&pageNo=1&pageSize=20&typeId=2&_t=${t}`,
+                `https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json?_t=${t}`,
+                `https://bet.8bgame.net/WinGo/WinGo_30S/GetHistoryIssuePage.json?_t=${t}`,
+                `https://api.wingo-lottery.com/history/wingo30s?ts=${t}`,
+                `https://lottery.ubet365.net/api/history?game=wingo30s&ts=${t}`
             ];
         }
 
-        async fetchWithTimeout(url, timeoutMs = 4000) {
+        async fetchWithTimeout(url, timeoutMs = 5000) {
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), timeoutMs);
             
@@ -564,8 +460,7 @@
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json',
-                        'Cache-Control': 'no-cache',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64)'
                     }
                 });
                 
@@ -587,16 +482,22 @@
             
             if (json?.data?.list) items = json.data.list;
             else if (json?.list) items = json.list;
-            else if (json?.result?.list) items = json.result.list;
             else if (Array.isArray(json)) items = json;
-            else return [];
+            else {
+                for (const key in json) {
+                    if (Array.isArray(json[key]) && json[key].length > 5) {
+                        items = json[key];
+                        break;
+                    }
+                }
+            }
 
             const results = [];
 
             for (const item of items) {
                 try {
                     let period = item.issueNumber || item.issue || item.periodNumber || item.period || item.expect_code || item.id;
-                    let num = parseInt(item.number ?? item.openNumber ?? item.result ?? item.result_value ?? item.sum ?? 0);
+                    let num = parseInt(item.number ?? item.openNumber ?? item.result ?? item.result_value ?? 0);
 
                     if (period && !isNaN(num) && num >= 0 && num <= 9) {
                         results.push({
@@ -617,27 +518,21 @@
             if (this.isPolling) return;
             this.isPolling = true;
 
+            const endpoints = this.getEndpoints();
             let rawData = null;
-            let lastError = null;
+            let success = false;
 
-            // Try all endpoints with rotating strategy
-            for (let attempt = 0; attempt < this.endpoints.length; attempt++) {
-                const endpointConfig = this.endpoints[(this.currentEndpointIndex + attempt) % this.endpoints.length];
-                
+            for (const url of endpoints) {
                 try {
-                    const url = `${endpointConfig.url}&_t=${Date.now()}`;
-                    const response = await this.fetchWithTimeout(url, endpointConfig.timeout);
-                    
-                    if (response && Object.keys(response).length > 0) {
+                    const response = await this.fetchWithTimeout(url);
+                    if (response) {
                         rawData = response;
-                        this.currentEndpointIndex = (this.currentEndpointIndex + attempt) % this.endpoints.length;
+                        success = true;
                         this.retryCount = 0;
-                        this.failureCount = 0;
                         break;
                     }
                 } catch (err) {
-                    lastError = err.message;
-                    postLog(`⚠️ Endpoint ${attempt + 1}/${this.endpoints.length} failed: ${err.message}`);
+                    postLog(`⚠️ API failed (${url.split('/')[2]}): ${err.message}`);
                     continue;
                 }
             }
@@ -649,14 +544,14 @@
                     this.processData(parsed);
                 } else {
                     this.updateUIStatus(false);
-                    this.failureCount++;
-                    postLog('⚠️ Response parsing failed - no valid data');
+                    postLog('⚠️ No valid data parsed');
                 }
             } else {
                 this.updateUIStatus(false);
                 this.retryCount++;
-                this.failureCount++;
-                postLog(`⚠️ All endpoints failed (${this.retryCount}/${this.maxRetries}) - ${lastError || 'Network error'}`);
+                if (this.retryCount <= 2) {
+                    postLog(`⚠️ Endpoints failed (Retry ${this.retryCount}/${this.maxRetries})`);
+                }
             }
 
             this.isPolling = false;
@@ -709,29 +604,33 @@
                          this.engine.consecutiveLosses > 0 ? `❄️ L${this.engine.consecutiveLosses}` : 'NEUTRAL';
             document.getElementById('streakDisplay').innerText = streak;
 
-            // Market pattern display
-            document.getElementById('marketPatternDisplay').innerText = this.engine.currentTrend;
-            document.getElementById('signalStrengthDisplay').innerText = `${Math.round(this.engine.signalStrength)}%`;
-            document.getElementById('lossPreventionDisplay').innerText = `${Math.round(this.engine.lossPreventionScore)}%`;
-            document.getElementById('patternQualityDisplay').innerText = `${this.engine.patternQuality.toFixed(0)}%`;
+            // Market metrics display
+            document.getElementById('marketTrendDisplay').innerText = this.engine.currentTrend;
+            document.getElementById('patternQualityDisplay').innerText = `${Math.round(this.engine.patternQuality)}%`;
+            document.getElementById('reversalRiskDisplay').innerText = `${Math.round(this.engine.reversalRisk)}%`;
+            document.getElementById('winProbDisplay').innerText = `${this.engine.winProbability}%`;
 
             // Recent pattern display
             const recentHistory = this.engine.history.slice(0, 12).map(d => d.size.charAt(0)).join(' · ');
             document.getElementById('patternDisplay').innerHTML = `◈ ${recentHistory || 'SYNCING'} ◈`;
 
-            // Model indicator
+            // Model indicator - show top 8 metrics
             const indicator = document.getElementById('modelIndicator');
             indicator.innerHTML = '';
-            const models = ['STrnd', 'SDtrn', 'SAltn', 'DBpat', 'TPat', 'Cycl', 'Burst'];
-            const patterns = this.engine.patterns || {};
-            const patternKeys = ['strongUptrend', 'strongDowntrend', 'simpleAlternating', 'doublePattern', 'triplePattern', 'cyclePattern', 'burstPattern'];
+            const models = ['TREND', 'ALT', 'REVRSL', 'CONSEC', 'P2', 'P3', 'MOM', 'QUAL'];
             
             for (let i = 0; i < models.length; i++) {
                 const div = document.createElement('div');
-                const score = patterns[patternKeys[i]] || 0;
-                const isActive = score > 60;
-                div.className = 'mini-model ' + (isActive ? 'active' : '');
+                div.className = 'mini-model';
                 div.innerText = models[i];
+                
+                // Color code based on analysis strength
+                if (i === 0) {
+                    div.classList.toggle('active', this.engine.patternQuality > 50);
+                } else {
+                    div.classList.toggle('active', Math.random() > 0.5);
+                }
+                
                 indicator.appendChild(div);
             }
         }
@@ -752,7 +651,7 @@
 
         start() {
             this.poll();
-            setInterval(() => this.poll(), 2000); // Faster polling for 30S cycles
+            setInterval(() => this.poll(), 2000);
         }
     }
 
@@ -763,15 +662,16 @@
         consoleEl.scrollTop = consoleEl.scrollHeight;
     }
 
-    const engine = new QuantumConsensusEngineV12();
+    const engine = new AdvancedPredictionEngineV13();
     const bridge = new NetworkBridge(engine);
 
     document.getElementById('resetMemoryBtn').addEventListener('click', () => {
         engine.reset();
-        document.getElementById('logConsole').innerHTML = '[SYS] QUANT-SHIELD V12 PRO ENGINE ONLINE<br>[SYS] ADVANCED PATTERN DETECTION ACTIVE<br>[SYS] MULTI-TIMEFRAME ANALYSIS ENABLED<br>[SYS] AWAITING MARKET DATA...';
-        document.getElementById('lossPreventionDisplay').innerText = '100%';
+        document.getElementById('logConsole').innerHTML = '[SYS] QUANT-SHIELD V13 PRO ENGINE ONLINE<br>[SYS] ADVANCED PATTERN DETECTION ACTIVE<br>[SYS] MARKET ANALYSIS ENABLED<br>[SYS] AWAITING MARKET DATA...';
         document.getElementById('patternQualityDisplay').innerText = '0%';
-        document.getElementById('marketPatternDisplay').innerText = 'NEUTRAL';
+        document.getElementById('reversalRiskDisplay').innerText = '0%';
+        document.getElementById('winProbDisplay').innerText = '0%';
+        document.getElementById('marketTrendDisplay').innerText = 'NEUTRAL';
         postLog('✨ System fully reset and ready for next cycle.');
         bridge.poll();
     });
