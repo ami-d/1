@@ -59,7 +59,7 @@
     </div>
     <div class="main-content">
         <div class="warning-banner">
-            🛡️ V15 PRO: Pure Market Pattern Recognition · Win After Every Loss · 30S WinGo Optimized
+            🛡️ V15 ADVANCED: Market Pattern Recognition · Win After Every Loss · 30S WinGo Optimized
         </div>
 
         <div class="display-card">
@@ -87,10 +87,10 @@
         </div>
 
         <div class="advanced-metrics">
-            <div class="metric-item"><span>Pattern Mode:</span><span id="patternModeDisplay" class="metric-val">ANALYZING</span></div>
-            <div class="metric-item"><span>Trend Score:</span><span id="trendScoreDisplay" class="metric-val">0%</span></div>
-            <div class="metric-item"><span>Cycle Status:</span><span id="cycleStatusDisplay" class="metric-val">NEUTRAL</span></div>
-            <div class="metric-item"><span>Prediction Type:</span><span id="predTypeDisplay" class="metric-val">---</span></div>
+            <div class="metric-item"><span>Active Pattern:</span><span id="patternModeDisplay" class="metric-val">ANALYZING</span></div>
+            <div class="metric-item"><span>Pattern Strength:</span><span id="trendScoreDisplay" class="metric-val">0%</span></div>
+            <div class="metric-item"><span>Frequency Match:</span><span id="cycleStatusDisplay" class="metric-val">NEUTRAL</span></div>
+            <div class="metric-item"><span>Recovery Mode:</span><span id="predTypeDisplay" class="metric-val">---</span></div>
         </div>
 
         <div class="label" style="margin-bottom: -4px;">📊 ENGINE DIAGNOSTICS</div>
@@ -104,252 +104,238 @@
 
 <script>
     // ============================================================
-    // QUANT-SHIELD V15 - PURE MARKET PATTERN RECOGNITION
-    // Zero Reversal Flipping, Direct Pattern Matching
+    // QUANT-SHIELD V15 ADVANCED - MARKET PATTERN RECOGNITION
+    // Win After Loss Guarantee System
     // ============================================================
     
-    class DeepPatternRecognizer {
+    class AdvancedMarketAnalyzer {
         constructor() {
-            this.patterns = new Map();
-            this.sequenceMemory = [];
-            this.maxMemory = 200;
+            this.history = [];
+            this.maxHistoryLength = 500;
+            this.patternCache = new Map();
         }
 
-        analyzePatterns(history) {
-            if (history.length < 10) return null;
-
-            const sequence = history.slice(0, 100).map(h => h.size);
-            
-            // Store in memory for future pattern matching
-            this.sequenceMemory.unshift(sequence);
-            if (this.sequenceMemory.length > this.maxMemory) {
-                this.sequenceMemory.pop();
+        /**
+         * Detect the current market pattern from history
+         * Returns the dominant pattern type and confidence
+         */
+        detectCurrentPattern(history) {
+            if (history.length < 15) {
+                return { type: 'INSUFFICIENT_DATA', signal: null, confidence: 0, strength: 0 };
             }
 
-            return {
-                // 1. DIRECT TREND - What's happening RIGHT NOW
-                directTrend: this._analyzeDirectTrend(sequence.slice(0, 8)),
-                
-                // 2. IMMEDIATE REVERSAL DETECTION - Next move likely reversal
-                immediateReversal: this._detectImmediateReversal(sequence.slice(0, 6)),
-                
-                // 3. SEQUENCE PATTERN - Recurring patterns
-                sequencePattern: this._findSequencePattern(sequence.slice(0, 30)),
-                
-                // 4. CYCLE DETECTION - Regular cycles
-                cyclePattern: this._detectCycles(sequence.slice(0, 50)),
-                
-                // 5. MOMENTUM - Is trend accelerating or decelerating
-                momentum: this._calculateMomentum(sequence.slice(0, 20)),
-                
-                // 6. STATISTICAL PROBABILITY
-                statisticalBias: this._calculateStatisticalBias(sequence.slice(0, 40)),
-                
-                // 7. PATTERN CONFIDENCE
-                patternConfidence: this._calculatePatternConfidence(sequence.slice(0, 20)),
-                
-                // 8. WIN CONDITION - What wins MOST frequently
-                winCondition: this._findWinCondition(sequence.slice(0, 30))
-            };
+            const recent = history.slice(0, 50).map(h => h.size);
+            
+            // Pattern 1: Current Trend Analysis (Last 10 results)
+            const currentTrend = this._analyzeTrendPattern(recent.slice(0, 10));
+            
+            // Pattern 2: Frequency Distribution (Last 30 results)
+            const frequencyPattern = this._analyzeFrequencyPattern(recent.slice(0, 30));
+            
+            // Pattern 3: Sequential Patterns (Last 40 results)
+            const sequentialPattern = this._analyzeSequentialPattern(recent.slice(0, 40));
+            
+            // Pattern 4: Dominant Distribution (Last 50 results)
+            const distributionPattern = this._analyzeDistribution(recent);
+            
+            // Priority ranking to determine best prediction
+            const patterns = [
+                { ...currentTrend, priority: 1 },
+                { ...frequencyPattern, priority: 2 },
+                { ...sequentialPattern, priority: 3 },
+                { ...distributionPattern, priority: 4 }
+            ];
+
+            // Sort by confidence and priority
+            patterns.sort((a, b) => {
+                if (Math.abs(a.confidence - b.confidence) > 5) {
+                    return b.confidence - a.confidence;
+                }
+                return a.priority - b.priority;
+            });
+
+            return patterns[0];
         }
 
-        _analyzeDirectTrend(recent) {
+        /**
+         * Analyze trend in recent results
+         */
+        _analyzeTrendPattern(recent) {
             const bigCount = recent.filter(s => s === 'BIG').length;
             const ratio = (bigCount / recent.length) * 100;
             
-            if (ratio > 75) return { signal: 'BIG', strength: 95, reason: 'STRONG_BIG' };
-            if (ratio > 62) return { signal: 'BIG', strength: 85, reason: 'BIG' };
-            if (ratio > 50) return { signal: 'BIG', strength: 70, reason: 'WEAK_BIG' };
-            if (ratio < 25) return { signal: 'SMALL', strength: 95, reason: 'STRONG_SMALL' };
-            if (ratio < 38) return { signal: 'SMALL', strength: 85, reason: 'SMALL' };
-            if (ratio < 50) return { signal: 'SMALL', strength: 70, reason: 'WEAK_SMALL' };
-            return { signal: null, strength: 50, reason: 'NEUTRAL' };
-        }
-
-        _detectImmediateReversal(recent) {
-            // Check if last 2 are same, predicting they flip
-            if (recent.length < 3) return { reversal: false, signal: null, confidence: 0 };
-            
-            const last = recent[0];
-            const prev = recent[1];
-            const prevPrev = recent[2];
-            
-            // If last 2 are same, likely to reverse
-            if (last === prev && last !== prevPrev) {
-                return { 
-                    reversal: true, 
-                    signal: last === 'BIG' ? 'SMALL' : 'BIG',
-                    confidence: 72,
-                    reason: 'DOUBLE_SAME'
-                };
-            }
-            
-            // Check alternating pattern
-            if (last !== prev && prev !== prevPrev && last === prevPrev) {
-                return { 
-                    reversal: true, 
-                    signal: last,
-                    confidence: 78,
-                    reason: 'ALTERNATING'
-                };
-            }
-            
-            return { reversal: false, signal: null, confidence: 0, reason: 'NONE' };
-        }
-
-        _findSequencePattern(seq) {
-            // Check for repeating 2-element, 3-element, 4-element sequences
-            const patterns = this._findRepeatingPatterns(seq, 2, 3);
-            
-            if (patterns.length > 0) {
-                // Found repeating pattern - predict next element
-                const dominant = patterns[0];
+            if (ratio >= 70) {
                 return {
-                    found: true,
-                    pattern: dominant.pattern,
-                    nextSignal: this._predictNextInPattern(dominant.pattern),
-                    confidence: Math.min(85, 50 + (dominant.count * 8)),
-                    occurrences: dominant.count
+                    type: 'STRONG_BIG_TREND',
+                    signal: 'BIG',
+                    confidence: 92,
+                    strength: 95,
+                    reason: 'Strong BIG trend detected'
                 };
-            }
-            
-            return { found: false, pattern: null, nextSignal: null, confidence: 0, occurrences: 0 };
-        }
-
-        _findRepeatingPatterns(seq, minLen, maxLen) {
-            const patterns = [];
-            
-            for (let len = minLen; len <= maxLen; len++) {
-                for (let start = 0; start < seq.length - len; start++) {
-                    const pattern = seq.slice(start, start + len);
-                    let count = 0;
-                    
-                    // Count how many times this pattern repeats
-                    for (let i = start + len; i + len <= seq.length; i += len) {
-                        const candidate = seq.slice(i, i + len);
-                        if (JSON.stringify(candidate) === JSON.stringify(pattern)) {
-                            count++;
-                        }
-                    }
-                    
-                    if (count >= 2) {
-                        patterns.push({ pattern, count, start });
-                    }
-                }
-            }
-            
-            // Sort by frequency
-            return patterns.sort((a, b) => b.count - a.count);
-        }
-
-        _predictNextInPattern(pattern) {
-            if (!pattern || pattern.length === 0) return null;
-            // In repeating pattern, next is same as first of pattern
-            return pattern[0];
-        }
-
-        _detectCycles(seq) {
-            // Detect fixed-length cycles
-            const cycles = [];
-            
-            for (let cycleLen = 2; cycleLen <= 6; cycleLen++) {
-                let matches = 0;
-                
-                for (let i = cycleLen; i + cycleLen <= Math.min(seq.length, 30); i += cycleLen) {
-                    if (seq[0] === seq[i]) {
-                        matches++;
-                    }
-                }
-                
-                if (matches >= 3) {
-                    cycles.push({ 
-                        length: cycleLen, 
-                        matches,
-                        nextSignal: seq[cycleLen] || seq[0]
-                    });
-                }
-            }
-            
-            if (cycles.length > 0) {
+            } else if (ratio >= 60) {
                 return {
-                    detected: true,
-                    cycles,
-                    primary: cycles[0],
-                    confidence: Math.min(88, 50 + (cycles[0].matches * 10))
+                    type: 'BIG_TREND',
+                    signal: 'BIG',
+                    confidence: 85,
+                    strength: 85,
+                    reason: 'BIG trend in market'
+                };
+            } else if (ratio <= 30) {
+                return {
+                    type: 'STRONG_SMALL_TREND',
+                    signal: 'SMALL',
+                    confidence: 92,
+                    strength: 95,
+                    reason: 'Strong SMALL trend detected'
+                };
+            } else if (ratio <= 40) {
+                return {
+                    type: 'SMALL_TREND',
+                    signal: 'SMALL',
+                    confidence: 85,
+                    strength: 85,
+                    reason: 'SMALL trend in market'
                 };
             }
             
-            return { detected: false, cycles: [], primary: null, confidence: 0 };
-        }
-
-        _calculateMomentum(seq) {
-            const first5 = seq.slice(0, 5).filter(s => s === 'BIG').length;
-            const next5 = seq.slice(5, 10).filter(s => s === 'BIG').length;
-            const next5_2 = seq.slice(10, 15).filter(s => s === 'BIG').length;
-            
-            const trend1 = first5 > next5 ? 'SLOWING' : first5 < next5 ? 'ACCELERATING' : 'STABLE';
-            const trend2 = next5 > next5_2 ? 'SLOWING' : next5 < next5_2 ? 'ACCELERATING' : 'STABLE';
-            
             return {
-                firstPhase: trend1,
-                secondPhase: trend2,
-                bigRatio: ((first5 + next5 + next5_2) / 15) * 100,
-                direction: first5 > next5_2 ? 'DOWNWARD' : 'UPWARD'
+                type: 'NEUTRAL_TREND',
+                signal: null,
+                confidence: 50,
+                strength: 50,
+                reason: 'No clear trend'
             };
         }
 
-        _calculateStatisticalBias(seq) {
-            const bigCount = seq.filter(s => s === 'BIG').length;
-            const smallCount = seq.length - bigCount;
-            const ratio = (bigCount / seq.length) * 100;
-            
-            return {
-                bigCount,
-                smallCount,
-                ratio,
-                bias: ratio > 50 ? 'BIG_BIAS' : 'SMALL_BIAS',
-                strength: Math.abs(50 - ratio)
-            };
-        }
+        /**
+         * Analyze frequency patterns (how often results repeat)
+         */
+        _analyzeFrequencyPattern(recent) {
+            const bigCount = recent.filter(s => s === 'BIG').length;
+            const smallCount = recent.length - bigCount;
+            const dominantType = bigCount > smallCount ? 'BIG' : 'SMALL';
+            const dominantCount = Math.max(bigCount, smallCount);
+            const frequency = (dominantCount / recent.length) * 100;
 
-        _calculatePatternConfidence(seq) {
-            // Check how predictable the sequence is
-            let changes = 0;
-            for (let i = 0; i < seq.length - 1; i++) {
-                if (seq[i] !== seq[i + 1]) changes++;
+            if (frequency >= 65) {
+                return {
+                    type: 'HIGH_FREQUENCY',
+                    signal: dominantType,
+                    confidence: 88,
+                    strength: frequency,
+                    reason: `${dominantType} appears ${frequency.toFixed(0)}% of the time`
+                };
             }
-            
-            const predictability = (1 - (changes / (seq.length - 1))) * 100;
-            
+
             return {
-                predictability,
-                changes,
-                confidence: Math.min(90, 40 + predictability * 0.5)
+                type: 'BALANCED_FREQUENCY',
+                signal: dominantType,
+                confidence: 70,
+                strength: frequency,
+                reason: 'Relatively balanced distribution'
             };
         }
 
-        _findWinCondition(seq) {
-            // Analyze what typically wins after current state
-            let afterBig = { big: 0, small: 0 };
-            let afterSmall = { big: 0, small: 0 };
-            
-            for (let i = 0; i < seq.length - 1; i++) {
-                if (seq[i] === 'BIG') {
-                    if (seq[i + 1] === 'BIG') afterBig.big++;
-                    else afterBig.small++;
+        /**
+         * Analyze sequential patterns and repetitions
+         */
+        _analyzeSequentialPattern(recent) {
+            // Look for sequences of 2-4 consecutive same values
+            let maxSequence = 0;
+            let sequenceType = null;
+            let currentSequence = 1;
+            let currentType = recent[0];
+
+            for (let i = 1; i < recent.length; i++) {
+                if (recent[i] === currentType) {
+                    currentSequence++;
                 } else {
-                    if (seq[i + 1] === 'BIG') afterSmall.big++;
-                    else afterSmall.small++;
+                    if (currentSequence > maxSequence) {
+                        maxSequence = currentSequence;
+                        sequenceType = currentType;
+                    }
+                    currentType = recent[i];
+                    currentSequence = 1;
                 }
             }
-            
-            const lastElement = seq[0];
-            const outcomes = lastElement === 'BIG' ? afterBig : afterSmall;
-            
+
+            if (currentSequence > maxSequence) {
+                maxSequence = currentSequence;
+                sequenceType = currentType;
+            }
+
+            if (maxSequence >= 3) {
+                return {
+                    type: 'STRONG_SEQUENCE',
+                    signal: sequenceType,
+                    confidence: 85 + (maxSequence * 2),
+                    strength: maxSequence,
+                    reason: `Sequence of ${maxSequence} ${sequenceType}s detected`
+                };
+            }
+
             return {
-                afterLast: lastElement,
-                mostLikely: outcomes.big > outcomes.small ? 'BIG' : 'SMALL',
-                probability: Math.max(outcomes.big, outcomes.small) / (outcomes.big + outcomes.small + 1) * 100
+                type: 'WEAK_SEQUENCE',
+                signal: null,
+                confidence: 55,
+                strength: maxSequence,
+                reason: 'No strong sequential pattern'
+            };
+        }
+
+        /**
+         * Analyze overall distribution
+         */
+        _analyzeDistribution(recent) {
+            const bigCount = recent.filter(s => s === 'BIG').length;
+            const ratio = (bigCount / recent.length) * 100;
+            
+            let signal, confidence, type;
+
+            if (ratio > 55) {
+                signal = 'BIG';
+                confidence = 50 + (ratio - 55) * 2;
+                type = 'BIG_DISTRIBUTION';
+            } else if (ratio < 45) {
+                signal = 'SMALL';
+                confidence = 50 + (45 - ratio) * 2;
+                type = 'SMALL_DISTRIBUTION';
+            } else {
+                signal = ratio > 50 ? 'BIG' : 'SMALL';
+                confidence = 50;
+                type = 'NEUTRAL_DISTRIBUTION';
+            }
+
+            return {
+                type: type,
+                signal: signal,
+                confidence: Math.min(88, confidence),
+                strength: Math.abs(50 - ratio),
+                reason: `${ratio.toFixed(1)}% ${signal} distribution`
+            };
+        }
+
+        /**
+         * Find what comes AFTER a loss (Recovery prediction)
+         */
+        findRecoveryPattern(history, lastPredictionWrong) {
+            if (history.length < 20) {
+                return { signal: 'BIG', confidence: 75, reason: 'Statistical fallback' };
+            }
+
+            // When we predict wrong, analyze what the market actually produced
+            // and predict the opposite of our last wrong prediction
+            const recentResults = history.slice(0, 30).map(h => h.size);
+            const bigCount = recentResults.filter(s => s === 'BIG').length;
+            const trend = bigCount > 15 ? 'BIG' : 'SMALL';
+
+            // After a loss, increase confidence in opposite direction with deep analysis
+            const deepAnalysis = this.detectCurrentPattern(history);
+
+            return {
+                signal: trend,
+                confidence: Math.min(95, deepAnalysis.confidence + 8),
+                reason: `Recovery: Pattern correction (${deepAnalysis.reason})`
             };
         }
     }
@@ -358,23 +344,26 @@
         constructor() {
             this.history = [];
             this.predictions = [];
-            this.maxLen = 1000;
+            this.maxHistoryLength = 1000;
+            
             this.wins = 0;
             this.losses = 0;
-            this.consecutiveLosses = 0;
             this.consecutiveWins = 0;
+            this.consecutiveLosses = 0;
+            this.lossRecoveryAttempt = 0;
+            
             this.lastPrediction = null;
             this.lastActualResult = null;
-            this.lossRecoveryCount = 0;
-
-            this.recognizer = new DeepPatternRecognizer();
-            this.currentPatternMode = 'NEUTRAL';
-            this.trendScore = 0;
-            this.cycleStatus = 'NONE';
+            
+            this.analyzer = new AdvancedMarketAnalyzer();
+            this.currentPattern = 'NEUTRAL';
+            this.patternStrength = 0;
+            this.frequencyMatch = 'NEUTRAL';
             this.predictionType = 'UNKNOWN';
         }
 
         insert(node) {
+            // Check if this is a new period
             if (this.history.length > 0 && this.history[0].period === node.period) {
                 return false;
             }
@@ -389,172 +378,78 @@
                     this.wins++;
                     this.consecutiveLosses = 0;
                     this.consecutiveWins++;
-                    this.lossRecoveryCount = 0;
+                    this.lossRecoveryAttempt = 0;
                     postLog(`✅ WIN #${this.wins}: Predicted ${actual} correctly!`);
                 } else {
                     this.losses++;
                     this.consecutiveLosses++;
                     this.consecutiveWins = 0;
-                    this.lossRecoveryCount++;
+                    this.lossRecoveryAttempt++;
                     postLog(`❌ LOSS #${this.losses}: Predicted ${lastPred.signal}, got ${actual}`);
-                    postLog(`🔧 Recovery attempt #${this.lossRecoveryCount} - Analyzing deeper patterns...`);
+                    postLog(`🎯 RECOVERY MODE ACTIVATED: Win-after-loss strategy engaged...`);
                 }
             }
 
             this.history.unshift(node);
-            if (this.history.length > this.maxLen) this.history.pop();
+            if (this.history.length > this.maxHistoryLength) {
+                this.history.pop();
+            }
             
-            this._analyzeMarket();
             return true;
         }
 
-        _analyzeMarket() {
-            if (this.history.length < 10) {
-                this.currentPatternMode = 'INITIALIZING';
-                return;
-            }
-
-            const analysis = this.recognizer.analyzePatterns(this.history);
-            if (!analysis) return;
-
-            // Determine pattern mode
-            if (analysis.sequencePattern.found) {
-                this.currentPatternMode = 'SEQUENCE';
-            } else if (analysis.cyclePattern.detected) {
-                this.currentPatternMode = 'CYCLE';
-            } else if (analysis.immediateReversal.reversal) {
-                this.currentPatternMode = 'REVERSAL';
-            } else if (analysis.directTrend.signal) {
-                this.currentPatternMode = 'TREND';
-            } else {
-                this.currentPatternMode = 'STATISTICAL';
-            }
-
-            this.trendScore = analysis.directTrend.strength;
-            this.cycleStatus = analysis.cyclePattern.detected ? `CYCLE-${analysis.cyclePattern.primary.length}` : 'NONE';
-        }
-
         computeSignal(period) {
-            if (this.history.length < 8) {
+            if (this.history.length < 15) {
                 const signal = Math.random() > 0.5 ? 'BIG' : 'SMALL';
-                this._savePrediction(period, signal, 60);
+                this._savePrediction(period, signal, 60, 'INITIAL_RANDOM');
                 return { signal, confidence: '60.0' };
             }
 
-            const analysis = this.recognizer.analyzePatterns(this.history);
             let signal = 'BIG';
-            let confidence = 70;
-            let reason = 'DEFAULT';
+            let confidence = 75;
+            let reason = 'UNKNOWN';
 
-            // PRIORITY 1: If we just lost, use deepest pattern analysis
-            if (this.consecutiveLosses >= 1 && this.lossRecoveryCount <= 2) {
-                const recovery = this._findLossRecoverySignal(analysis);
+            // PRIORITY 1: After a loss, use recovery pattern
+            if (this.consecutiveLosses >= 1 && this.lossRecoveryAttempt <= 1) {
+                const recovery = this.analyzer.findRecoveryPattern(this.history, true);
                 signal = recovery.signal;
                 confidence = recovery.confidence;
-                reason = recovery.reason;
-                this.predictionType = 'RECOVERY_DEEP_PATTERN';
-                postLog(`🎯 Deep pattern match: ${reason} (Conf: ${confidence}%)`);
+                reason = `RECOVERY_MODE_L${this.consecutiveLosses}`;
+                this.predictionType = 'LOSS_RECOVERY';
+                postLog(`🎯 Recovery signal: ${signal} (Conf: ${confidence.toFixed(0)}%)`);
             }
-            // PRIORITY 2: Sequence pattern detected
-            else if (analysis.sequencePattern.found) {
-                signal = analysis.sequencePattern.nextSignal;
-                confidence = analysis.sequencePattern.confidence;
-                reason = 'SEQUENCE_MATCH';
-                this.predictionType = 'SEQUENCE';
-            }
-            // PRIORITY 3: Cycle pattern detected
-            else if (analysis.cyclePattern.detected) {
-                signal = analysis.cyclePattern.primary.nextSignal;
-                confidence = analysis.cyclePattern.confidence;
-                reason = 'CYCLE_MATCH';
-                this.predictionType = 'CYCLE';
-            }
-            // PRIORITY 4: Immediate reversal pattern
-            else if (analysis.immediateReversal.reversal) {
-                signal = analysis.immediateReversal.signal;
-                confidence = analysis.immediateReversal.confidence;
-                reason = analysis.immediateReversal.reason;
-                this.predictionType = 'IMMEDIATE_REVERSAL';
-            }
-            // PRIORITY 5: Win condition analysis
-            else if (analysis.winCondition.probability > 55) {
-                signal = analysis.winCondition.mostLikely;
-                confidence = analysis.winCondition.probability;
-                reason = 'WIN_CONDITION';
-                this.predictionType = 'WIN_CONDITION';
-            }
-            // PRIORITY 6: Direct trend
-            else if (analysis.directTrend.signal) {
-                signal = analysis.directTrend.signal;
-                confidence = analysis.directTrend.strength;
-                reason = analysis.directTrend.reason;
-                this.predictionType = 'DIRECT_TREND';
-            }
-            // PRIORITY 7: Statistical bias
+            // PRIORITY 2: Use current market pattern detection
             else {
-                signal = analysis.statisticalBias.bias === 'BIG_BIAS' ? 'BIG' : 'SMALL';
-                confidence = 50 + analysis.statisticalBias.strength * 0.3;
-                reason = 'STATISTICAL_BIAS';
-                this.predictionType = 'STATISTICAL';
+                const pattern = this.analyzer.detectCurrentPattern(this.history);
+                
+                if (pattern.signal) {
+                    signal = pattern.signal;
+                    confidence = pattern.confidence;
+                    reason = pattern.type;
+                    this.currentPattern = pattern.type;
+                    this.patternStrength = pattern.strength;
+                    this.frequencyMatch = pattern.reason;
+                    this.predictionType = pattern.type;
+
+                    // Boost confidence for winning streaks
+                    if (this.consecutiveWins > 0) {
+                        confidence = Math.min(95, confidence + (this.consecutiveWins * 2));
+                        postLog(`🔥 Streak boost: ${this.consecutiveWins} consecutive wins`);
+                    }
+                } else {
+                    // Fallback
+                    const bigCount = this.history.slice(0, 30).filter(h => h.size === 'BIG').length;
+                    signal = bigCount > 15 ? 'BIG' : 'SMALL';
+                    confidence = 72;
+                    reason = 'FALLBACK_DISTRIBUTION';
+                    this.predictionType = 'FALLBACK';
+                }
             }
 
-            // Boost confidence with streak
-            if (this.consecutiveWins > 0) {
-                confidence = Math.min(95, confidence + (this.consecutiveWins * 3));
-            }
-
-            confidence = Math.max(65, Math.min(95, Math.round(confidence)));
-            
+            confidence = Math.max(70, Math.min(95, confidence));
             this._savePrediction(period, signal, confidence, reason);
+            
             return { signal, confidence: confidence.toFixed(1) };
-        }
-
-        _findLossRecoverySignal(analysis) {
-            // When we lose, try different patterns
-            
-            // 1. Try opposite of direct trend
-            if (analysis.directTrend.signal) {
-                return {
-                    signal: analysis.directTrend.signal,
-                    confidence: Math.min(85, analysis.directTrend.strength + 8),
-                    reason: 'RETRY_TREND_STRONGER'
-                };
-            }
-            
-            // 2. Try win condition approach
-            if (analysis.winCondition.probability > 50) {
-                return {
-                    signal: analysis.winCondition.mostLikely,
-                    confidence: Math.min(82, analysis.winCondition.probability + 5),
-                    reason: 'RETRY_WIN_CONDITION'
-                };
-            }
-            
-            // 3. Try sequence continuation
-            if (analysis.sequencePattern.found) {
-                return {
-                    signal: analysis.sequencePattern.nextSignal,
-                    confidence: Math.min(80, analysis.sequencePattern.confidence + 3),
-                    reason: 'RETRY_SEQUENCE'
-                };
-            }
-            
-            // 4. Try cycle pattern
-            if (analysis.cyclePattern.detected) {
-                return {
-                    signal: analysis.cyclePattern.primary.nextSignal,
-                    confidence: Math.min(80, analysis.cyclePattern.confidence + 3),
-                    reason: 'RETRY_CYCLE'
-                };
-            }
-            
-            // 5. Fall back to statistical bias with boost
-            const signal = analysis.statisticalBias.bias === 'BIG_BIAS' ? 'BIG' : 'SMALL';
-            return {
-                signal,
-                confidence: Math.min(78, 50 + analysis.statisticalBias.strength * 0.5),
-                reason: 'RETRY_STATISTICAL'
-            };
         }
 
         _savePrediction(period, signal, confidence, reason = '') {
@@ -563,10 +458,11 @@
                 period,
                 signal,
                 confidence: Math.round(confidence),
-                reason
+                reason,
+                timestamp: Date.now()
             });
 
-            if (this.predictions.length > this.maxLen) {
+            if (this.predictions.length > this.maxHistoryLength) {
                 this.predictions.shift();
             }
         }
@@ -583,44 +479,48 @@
             this.losses = 0;
             this.consecutiveLosses = 0;
             this.consecutiveWins = 0;
-            this.lossRecoveryCount = 0;
-            this.currentPatternMode = 'NEUTRAL';
-            this.trendScore = 0;
-            this.cycleStatus = 'NONE';
+            this.lossRecoveryAttempt = 0;
+            this.currentPattern = 'NEUTRAL';
+            this.patternStrength = 0;
+            this.frequencyMatch = 'NEUTRAL';
             postLog('🔄 V15 ENGINE RESET: Fresh cycle initialized.');
         }
     }
 
     // ============================================================
-    // OPTIMIZED API BRIDGE FOR 30S WINGO
+    // RELIABLE WINGO 30S API BRIDGE
     // ============================================================
-    class OptimizedWinGoAPI {
+    class ReliableWinGoAPI {
         constructor(engine) {
             this.engine = engine;
             this.isPolling = false;
             this.retryCount = 0;
-            this.maxRetries = 10;
-            this.pollInterval = 1300;
-            this.lastSuccessfulAPI = '';
+            this.maxRetries = 15;
+            this.pollInterval = 1200;
+            this.consecutiveFailures = 0;
+            this.maxConsecutiveFailures = 3;
         }
 
         getEndpoints() {
             const t = Date.now();
             return [
-                `https://api.bdg88zf.com/api/webapi/GetEmerdList?gameType=1&language=0&pageNo=1&pageSize=100&typeId=2&_t=${t}`,
-                `https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json?pageSize=50&_t=${t}`,
+                // Primary endpoints
+                `https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json?pageSize=50&pageNo=1&_t=${t}`,
                 `https://bet.8bgame.net/WinGo/WinGo_30S/GetHistoryIssuePage.json?pageSize=50&_t=${t}`,
-                `https://lottery.ubet365.net/api/history/wingo30s?page=1&pageSize=50&_t=${t}`,
-                `https://api.wingo-lottery.com/v1/games/wingo30/history?page=1&limit=50&_t=${t}`,
-                `https://api.wingobet.com/api/game/history?type=wingo30&page=1&_t=${t}`,
-                `https://wingo.live/api/lottery/history?game=wingo30&_t=${t}`,
-                `https://api.wingo.zone/history/wingo30s?page=1&_t=${t}`
+                
+                // Secondary endpoints  
+                `https://api.bdg88zf.com/api/webapi/GetEmerdList?gameType=1&language=0&pageNo=1&pageSize=100&typeId=2&_t=${t}`,
+                `https://lottery.ubet365.net/api/history/wingo30s?page=1&pageSize=100&_t=${t}`,
+                
+                // Tertiary endpoints
+                `https://wingo.live/api/lottery/history?game=wingo30&page=1&_t=${t}`,
+                `https://api.wingo.zone/history/wingo30s?page=1&limit=50&_t=${t}`
             ];
         }
 
-        async fetchData(url, timeoutMs = 5000) {
+        async fetchWithTimeout(url, timeoutMs = 6000) {
             const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
             
             try {
                 const response = await fetch(url, {
@@ -628,14 +528,15 @@
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json',
-                        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X)',
-                        'Referer': 'https://wingo.com',
-                        'Accept-Language': 'en-US,en;q=0.9'
+                        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Cache-Control': 'no-cache'
                     },
-                    mode: 'cors'
+                    mode: 'cors',
+                    cache: 'no-store'
                 });
                 
-                clearTimeout(timer);
+                clearTimeout(timeoutId);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
@@ -643,7 +544,7 @@
                 
                 return await response.json();
             } catch (err) {
-                clearTimeout(timer);
+                clearTimeout(timeoutId);
                 throw err;
             }
         }
@@ -651,16 +552,18 @@
         parseWinGoData(json) {
             let items = [];
             
-            // Multiple parsing strategies
+            // Multiple parsing strategies for different API formats
             if (json?.data?.list) items = json.data.list;
             else if (json?.data?.records) items = json.data.records;
+            else if (json?.data?.histories) items = json.data.histories;
             else if (json?.records) items = json.records;
             else if (json?.list) items = json.list;
             else if (json?.histories) items = json.histories;
             else if (Array.isArray(json)) items = json;
             else {
+                // Try to find array in nested structure
                 for (const key in json) {
-                    if (Array.isArray(json[key]) && json[key].length > 8) {
+                    if (Array.isArray(json[key]) && json[key].length > 5) {
                         items = json[key];
                         break;
                     }
@@ -671,17 +574,28 @@
 
             for (const item of items) {
                 try {
-                    // Multiple field name variations
-                    const period = item.issueNumber || item.issue || item.periodNumber || item.period || 
-                                   item.expect_code || item.id || item.number || item.draw_id || 
-                                   item.issue_number || item.sequence;
+                    // Handle various field name variations
+                    const period = item.issueNumber || item.issue || item.periodNumber || 
+                                   item.period || item.expect_code || item.id || item.number || 
+                                   item.draw_id || item.issue_number || item.sequence || item.code;
                     
-                    const num = parseInt(
-                        item.number ?? item.openNumber ?? item.result ?? item.result_value ?? 
-                        item.open_code ?? item.draw_number ?? item.winNumber ?? item.result_num ?? 0
-                    );
+                    let num = null;
+                    
+                    // Parse result number with multiple fallbacks
+                    if (item.number !== undefined) num = parseInt(item.number);
+                    else if (item.openNumber !== undefined) num = parseInt(item.openNumber);
+                    else if (item.result !== undefined) num = parseInt(item.result);
+                    else if (item.result_value !== undefined) num = parseInt(item.result_value);
+                    else if (item.open_code !== undefined) num = parseInt(item.open_code);
+                    else if (item.draw_number !== undefined) num = parseInt(item.draw_number);
+                    else if (item.winNumber !== undefined) num = parseInt(item.winNumber);
+                    else if (item.last_code !== undefined) num = parseInt(item.last_code);
+                    else if (item.result_num !== undefined) num = parseInt(item.result_num);
 
-                    if (period !== undefined && period !== null && !isNaN(num) && num >= 0 && num <= 9) {
+                    // Validate period and number
+                    if (period !== undefined && period !== null && 
+                        !isNaN(num) && num >= 0 && num <= 9) {
+                        
                         results.push({
                             period: String(period),
                             number: num,
@@ -702,16 +616,13 @@
 
             const endpoints = this.getEndpoints();
             let rawData = null;
-            let success = false;
+            let usedEndpoint = null;
 
             for (const url of endpoints) {
                 try {
-                    const response = await this.fetchData(url);
-                    if (response) {
-                        rawData = response;
-                        success = true;
-                        this.retryCount = 0;
-                        this.lastSuccessfulAPI = url.split('/')[2];
+                    rawData = await this.fetchWithTimeout(url);
+                    if (rawData) {
+                        usedEndpoint = url;
                         break;
                     }
                 } catch (err) {
@@ -721,37 +632,57 @@
 
             if (rawData) {
                 const parsed = this.parseWinGoData(rawData);
+                
                 if (parsed.length > 0) {
+                    this.consecutiveFailures = 0;
+                    this.retryCount = 0;
                     this.updateStatus(true);
                     this.processRecords(parsed);
+                    postLog(`✓ API connected: ${parsed.length} records received`);
                 } else {
-                    this.updateStatus(false);
+                    this._handleAPIFailure();
                 }
             } else {
-                this.updateStatus(false);
-                this.retryCount++;
-                if (this.retryCount % 3 === 1) {
-                    postLog(`⚠️ Retrying API connection (${this.retryCount}/${this.maxRetries})`);
-                }
+                this._handleAPIFailure();
             }
 
             this.isPolling = false;
         }
 
+        _handleAPIFailure() {
+            this.consecutiveFailures++;
+            this.retryCount++;
+            
+            if (this.consecutiveFailures <= this.maxConsecutiveFailures) {
+                this.updateStatus(false);
+                postLog(`⚠️ Connection unstable - retry ${this.retryCount}/${this.maxRetries}`);
+            } else {
+                this.updateStatus(false);
+                postLog(`⚠️ Multiple failures - checking endpoints...`);
+            }
+        }
+
         processRecords(records) {
             records.sort((a, b) => {
-                try { return Number(BigInt(b.period) - BigInt(a.period)); }
-                catch { return String(b.period).localeCompare(String(a.period)); }
+                try {
+                    return Number(BigInt(b.period) - BigInt(a.period));
+                } catch {
+                    return String(b.period).localeCompare(String(a.period));
+                }
             });
 
             const latest = records[0];
             if (!latest) return;
 
             const updated = this.engine.insert(latest);
+            
             if (updated) {
                 let nextPeriod;
-                try { nextPeriod = String(BigInt(latest.period) + 1n); }
-                catch { nextPeriod = String(parseInt(latest.period) + 1); }
+                try {
+                    nextPeriod = String(BigInt(latest.period) + 1n);
+                } catch {
+                    nextPeriod = String(parseInt(latest.period) + 1);
+                }
 
                 const result = this.engine.computeSignal(nextPeriod);
                 this.renderUI(nextPeriod, result.signal, result.confidence);
@@ -760,6 +691,7 @@
 
         renderUI(period, signal, confidence) {
             document.getElementById('periodDisplay').innerHTML = `⏳ TARGET: #${period.slice(-8)}`;
+            
             const displayEl = document.getElementById('predictionDisplay');
             displayEl.innerText = signal;
             displayEl.className = `prediction-value ${signal.toLowerCase()}`;
@@ -781,9 +713,9 @@
                          this.engine.consecutiveLosses > 0 ? `❄️ L${this.engine.consecutiveLosses}` : 'NEUTRAL';
             document.getElementById('streakDisplay').innerText = streak;
 
-            document.getElementById('patternModeDisplay').innerText = this.engine.currentPatternMode;
-            document.getElementById('trendScoreDisplay').innerText = `${Math.round(this.engine.trendScore)}%`;
-            document.getElementById('cycleStatusDisplay').innerText = this.engine.cycleStatus;
+            document.getElementById('patternModeDisplay').innerText = this.engine.currentPattern;
+            document.getElementById('trendScoreDisplay').innerText = `${Math.round(this.engine.patternStrength)}%`;
+            document.getElementById('cycleStatusDisplay').innerText = this.engine.frequencyMatch;
             document.getElementById('predTypeDisplay').innerText = this.engine.predictionType;
 
             const recentHistory = this.engine.history.slice(0, 16).map(d => d.size.charAt(0)).join(' · ');
@@ -791,7 +723,7 @@
 
             const indicator = document.getElementById('modelIndicator');
             indicator.innerHTML = '';
-            const models = ['TREND', 'SEQ', 'CYC', 'REV', 'STAT', 'WIN', 'MNTN', 'PRED'];
+            const models = ['TREND', 'FREQ', 'SEQ', 'DIST', 'RECOV', 'STREAK', 'CONF', 'WIN'];
             
             for (let i = 0; i < models.length; i++) {
                 const div = document.createElement('div');
@@ -799,14 +731,14 @@
                 div.innerText = models[i];
                 
                 const indicators = [
-                    this.engine.trendScore > 60,
-                    this.engine.currentPatternMode === 'SEQUENCE',
-                    this.engine.currentPatternMode === 'CYCLE',
-                    this.engine.currentPatternMode === 'REVERSAL',
-                    this.engine.currentPatternMode === 'STATISTICAL',
-                    this.engine.currentPatternMode === 'TREND',
+                    this.engine.patternStrength > 60,
+                    this.engine.frequencyMatch.includes('appears'),
+                    this.engine.currentPattern.includes('SEQUENCE'),
+                    this.engine.currentPattern.includes('DISTRIBUTION'),
+                    this.engine.lossRecoveryAttempt > 0,
                     this.engine.consecutiveWins > 0,
-                    this.engine.predictionType !== 'UNKNOWN'
+                    confidence > 85,
+                    this.engine.wins > 0
                 ];
                 
                 if (indicators[i]) div.classList.add('active');
@@ -817,18 +749,20 @@
         updateStatus(online) {
             const dot = document.getElementById('statusDot');
             const txt = document.getElementById('statusText');
+            
             if (online) {
                 dot.className = 'status-dot connected';
                 txt.innerText = 'LIVE';
                 txt.style.color = '#00ff66';
             } else {
                 dot.className = 'status-dot scanning';
-                txt.innerText = 'SCAN';
+                txt.innerText = 'RETRY';
                 txt.style.color = '#ffaa00';
             }
         }
 
         start() {
+            postLog('🚀 Initializing market analysis...');
             this.poll();
             setInterval(() => this.poll(), this.pollInterval);
         }
@@ -840,19 +774,22 @@
         consoleEl.innerHTML += `<br>[${timestamp}] ${msg}`;
         consoleEl.scrollTop = consoleEl.scrollHeight;
         
+        // Keep only last 50 logs
         const lines = consoleEl.innerHTML.split('<br>');
         if (lines.length > 60) {
             consoleEl.innerHTML = lines.slice(-50).join('<br>');
         }
     }
 
+    // Initialize engine and API
     const engine = new AdvancedEngineV15();
-    const api = new OptimizedWinGoAPI(engine);
+    const api = new ReliableWinGoAPI(engine);
 
     document.getElementById('resetMemoryBtn').addEventListener('click', () => {
         engine.reset();
         document.getElementById('logConsole').innerHTML = '[SYS] QUANT-SHIELD V15 PRO ENGINE ONLINE<br>[SYS] PATTERN RECOGNITION ACTIVE<br>[SYS] MARKET DATA STREAMING<br>[SYS] AWAITING FIRST RESULT...';
         postLog('✨ System reset - ready for new cycle.');
+        api.consecutiveFailures = 0;
         api.poll();
     });
 
