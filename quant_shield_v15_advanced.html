@@ -105,111 +105,100 @@
 <script>
     // ============================================================
     // QUANT-SHIELD V15 ADVANCED - MARKET PATTERN RECOGNITION
-    // Win After Loss Guarantee System
+    // Improved prediction: conditional Markov-style + ensemble + safer recovery
     // ============================================================
     
     class AdvancedMarketAnalyzer {
         constructor() {
             this.history = [];
-            this.maxHistoryLength = 500;
+            this.maxHistoryLength = 800;
             this.patternCache = new Map();
         }
 
-        /**
-         * Detect the current market pattern from history
-         * Returns the dominant pattern type and confidence
-         */
+        // Build conditional next-state probabilities using order-N Markov counts
+        _computeConditionalNext(history, order = 2) {
+            if (history.length < order + 2) return null;
+            const seqCounts = { BIG: 0, SMALL: 0 };
+            const seqKey = history.slice(0, order).join('|'); // use most recent order items
+
+            // scan history for occurrences of seqKey followed by a next
+            for (let i = 0; i + order < history.length; i++) {
+                const key = history.slice(i, i + order).join('|');
+                const next = history[i + order];
+                if (key === seqKey) {
+                    if (next === 'BIG') seqCounts.BIG++;
+                    else if (next === 'SMALL') seqCounts.SMALL++;
+                }
+            }
+
+            const total = seqCounts.BIG + seqCounts.SMALL;
+            if (total === 0) return null;
+
+            const pBig = (seqCounts.BIG / total) * 100;
+            const pSmall = (seqCounts.SMALL / total) * 100;
+            const signal = pBig > pSmall ? 'BIG' : 'SMALL';
+            const confidence = Math.max(50, Math.min(98, Math.abs(pBig - pSmall) + Math.max(pBig, pSmall)));
+
+            return { type: `COND_ORDER_${order}`, signal, confidence: Math.round(confidence), strength: Math.max(pBig, pSmall), reason: `P(BIG)=${pBig.toFixed(1)}% P(SMALL)=${pSmall.toFixed(1)}%` };
+        }
+
         detectCurrentPattern(history) {
-            if (history.length < 15) {
+            if (history.length < 12) {
                 return { type: 'INSUFFICIENT_DATA', signal: null, confidence: 0, strength: 0 };
             }
 
-            const recent = history.slice(0, 50).map(h => h.size);
-            
-            // Pattern 1: Current Trend Analysis (Last 10 results)
-            const currentTrend = this._analyzeTrendPattern(recent.slice(0, 10));
-            
-            // Pattern 2: Frequency Distribution (Last 30 results)
-            const frequencyPattern = this._analyzeFrequencyPattern(recent.slice(0, 30));
-            
-            // Pattern 3: Sequential Patterns (Last 40 results)
-            const sequentialPattern = this._analyzeSequentialPattern(recent.slice(0, 40));
-            
-            // Pattern 4: Dominant Distribution (Last 50 results)
-            const distributionPattern = this._analyzeDistribution(recent);
-            
-            // Priority ranking to determine best prediction
-            const patterns = [
-                { ...currentTrend, priority: 1 },
-                { ...frequencyPattern, priority: 2 },
-                { ...sequentialPattern, priority: 3 },
-                { ...distributionPattern, priority: 4 }
-            ];
+            const recent = history.slice(0, 60).map(h => h.size);
 
-            // Sort by confidence and priority
-            patterns.sort((a, b) => {
-                if (Math.abs(a.confidence - b.confidence) > 5) {
-                    return b.confidence - a.confidence;
-                }
-                return a.priority - b.priority;
+            // Ensemble: conditional (order 3,2), sequence detector, frequency, trend, distribution
+            const cond3 = this._computeConditionalNext(recent, 3);
+            const cond2 = this._computeConditionalNext(recent, 2);
+            const seq = this._analyzeSequentialPattern(recent.slice(0, 30));
+            const trend = this._analyzeTrendPattern(recent.slice(0, 12));
+            const freq = this._analyzeFrequencyPattern(recent.slice(0, 40));
+            const dist = this._analyzeDistribution(recent.slice(0, 50));
+
+            const candidates = [];
+            if (cond3) candidates.push({ ...cond3, priority: 1 });
+            if (cond2) candidates.push({ ...cond2, priority: 2 });
+            if (seq && seq.signal) candidates.push({ ...seq, priority: 3 });
+            if (trend && trend.signal) candidates.push({ ...trend, priority: 4 });
+            if (freq && freq.signal) candidates.push({ ...freq, priority: 5 });
+            if (dist && dist.signal) candidates.push({ ...dist, priority: 6 });
+
+            if (candidates.length === 0) return { type: 'NO_PATTERN', signal: null, confidence: 50, strength: 0 };
+
+            // Score each candidate by confidence and priority, give conditional models higher weight
+            candidates.forEach(c => {
+                let weight = 1;
+                if (c.type && c.type.startsWith('COND')) weight = 1.4;
+                if (c.type && c.type.includes('STRONG')) weight = 1.2;
+                c.score = (c.confidence || 50) * weight - (c.priority || 5) * 2;
             });
 
-            return patterns[0];
-        }
+            candidates.sort((a, b) => b.score - a.score);
 
-        /**
-         * Analyze trend in recent results
-         */
-        _analyzeTrendPattern(recent) {
-            const bigCount = recent.filter(s => s === 'BIG').length;
-            const ratio = (bigCount / recent.length) * 100;
-            
-            if (ratio >= 70) {
-                return {
-                    type: 'STRONG_BIG_TREND',
-                    signal: 'BIG',
-                    confidence: 92,
-                    strength: 95,
-                    reason: 'Strong BIG trend detected'
-                };
-            } else if (ratio >= 60) {
-                return {
-                    type: 'BIG_TREND',
-                    signal: 'BIG',
-                    confidence: 85,
-                    strength: 85,
-                    reason: 'BIG trend in market'
-                };
-            } else if (ratio <= 30) {
-                return {
-                    type: 'STRONG_SMALL_TREND',
-                    signal: 'SMALL',
-                    confidence: 92,
-                    strength: 95,
-                    reason: 'Strong SMALL trend detected'
-                };
-            } else if (ratio <= 40) {
-                return {
-                    type: 'SMALL_TREND',
-                    signal: 'SMALL',
-                    confidence: 85,
-                    strength: 85,
-                    reason: 'SMALL trend in market'
-                };
-            }
-            
+            const winner = candidates[0];
             return {
-                type: 'NEUTRAL_TREND',
-                signal: null,
-                confidence: 50,
-                strength: 50,
-                reason: 'No clear trend'
+                type: winner.type,
+                signal: winner.signal,
+                confidence: winner.confidence,
+                strength: winner.strength || 0,
+                reason: winner.reason || ''
             };
         }
 
-        /**
-         * Analyze frequency patterns (how often results repeat)
-         */
+        _analyzeTrendPattern(recent) {
+            const bigCount = recent.filter(s => s === 'BIG').length;
+            const ratio = (bigCount / recent.length) * 100;
+
+            if (ratio >= 72) return { type: 'STRONG_BIG_TREND', signal: 'BIG', confidence: 92, strength: ratio, reason: 'Strong BIG trend' };
+            if (ratio >= 62) return { type: 'BIG_TREND', signal: 'BIG', confidence: 86, strength: ratio, reason: 'BIG trend' };
+            if (ratio <= 28) return { type: 'STRONG_SMALL_TREND', signal: 'SMALL', confidence: 92, strength: 100 - ratio, reason: 'Strong SMALL trend' };
+            if (ratio <= 38) return { type: 'SMALL_TREND', signal: 'SMALL', confidence: 86, strength: 100 - ratio, reason: 'SMALL trend' };
+
+            return { type: 'NEUTRAL_TREND', signal: null, confidence: 52, strength: 0, reason: 'No clear trend' };
+        }
+
         _analyzeFrequencyPattern(recent) {
             const bigCount = recent.filter(s => s === 'BIG').length;
             const smallCount = recent.length - bigCount;
@@ -217,126 +206,59 @@
             const dominantCount = Math.max(bigCount, smallCount);
             const frequency = (dominantCount / recent.length) * 100;
 
-            if (frequency >= 65) {
-                return {
-                    type: 'HIGH_FREQUENCY',
-                    signal: dominantType,
-                    confidence: 88,
-                    strength: frequency,
-                    reason: `${dominantType} appears ${frequency.toFixed(0)}% of the time`
-                };
-            }
-
-            return {
-                type: 'BALANCED_FREQUENCY',
-                signal: dominantType,
-                confidence: 70,
-                strength: frequency,
-                reason: 'Relatively balanced distribution'
-            };
+            if (frequency >= 66) return { type: 'HIGH_FREQUENCY', signal: dominantType, confidence: 88, strength: frequency, reason: `${dominantType} appears ${frequency.toFixed(0)}%` };
+            return { type: 'BALANCED_FREQUENCY', signal: dominantType, confidence: 70, strength: frequency, reason: 'Balanced distribution' };
         }
 
-        /**
-         * Analyze sequential patterns and repetitions
-         */
         _analyzeSequentialPattern(recent) {
-            // Look for sequences of 2-4 consecutive same values
+            if (!recent || recent.length === 0) return { type: 'WEAK_SEQUENCE', signal: null, confidence: 50, strength: 0 };
             let maxSequence = 0;
             let sequenceType = null;
             let currentSequence = 1;
             let currentType = recent[0];
 
             for (let i = 1; i < recent.length; i++) {
-                if (recent[i] === currentType) {
-                    currentSequence++;
-                } else {
-                    if (currentSequence > maxSequence) {
-                        maxSequence = currentSequence;
-                        sequenceType = currentType;
-                    }
+                if (recent[i] === currentType) currentSequence++;
+                else {
+                    if (currentSequence > maxSequence) { maxSequence = currentSequence; sequenceType = currentType; }
                     currentType = recent[i];
                     currentSequence = 1;
                 }
             }
+            if (currentSequence > maxSequence) { maxSequence = currentSequence; sequenceType = currentType; }
 
-            if (currentSequence > maxSequence) {
-                maxSequence = currentSequence;
-                sequenceType = currentType;
-            }
-
-            if (maxSequence >= 3) {
-                return {
-                    type: 'STRONG_SEQUENCE',
-                    signal: sequenceType,
-                    confidence: 85 + (maxSequence * 2),
-                    strength: maxSequence,
-                    reason: `Sequence of ${maxSequence} ${sequenceType}s detected`
-                };
-            }
-
-            return {
-                type: 'WEAK_SEQUENCE',
-                signal: null,
-                confidence: 55,
-                strength: maxSequence,
-                reason: 'No strong sequential pattern'
-            };
+            if (maxSequence >= 3) return { type: 'STRONG_SEQUENCE', signal: sequenceType, confidence: Math.min(96, 80 + maxSequence * 3), strength: maxSequence, reason: `Seq ${maxSequence}` };
+            return { type: 'WEAK_SEQUENCE', signal: null, confidence: 56, strength: maxSequence, reason: 'No strong sequence' };
         }
 
-        /**
-         * Analyze overall distribution
-         */
         _analyzeDistribution(recent) {
             const bigCount = recent.filter(s => s === 'BIG').length;
             const ratio = (bigCount / recent.length) * 100;
-            
-            let signal, confidence, type;
-
-            if (ratio > 55) {
-                signal = 'BIG';
-                confidence = 50 + (ratio - 55) * 2;
-                type = 'BIG_DISTRIBUTION';
-            } else if (ratio < 45) {
-                signal = 'SMALL';
-                confidence = 50 + (45 - ratio) * 2;
-                type = 'SMALL_DISTRIBUTION';
-            } else {
-                signal = ratio > 50 ? 'BIG' : 'SMALL';
-                confidence = 50;
-                type = 'NEUTRAL_DISTRIBUTION';
-            }
-
-            return {
-                type: type,
-                signal: signal,
-                confidence: Math.min(88, confidence),
-                strength: Math.abs(50 - ratio),
-                reason: `${ratio.toFixed(1)}% ${signal} distribution`
-            };
+            let signal = ratio > 50 ? 'BIG' : 'SMALL';
+            let confidence = 50 + Math.abs(ratio - 50) * 1.6;
+            confidence = Math.min(92, confidence);
+            return { type: 'DISTRIBUTION', signal, confidence: Math.round(confidence), strength: Math.abs(ratio - 50), reason: `${ratio.toFixed(1)}% BIG` };
         }
 
-        /**
-         * Find what comes AFTER a loss (Recovery prediction)
-         */
-        findRecoveryPattern(history, lastPredictionWrong) {
-            if (history.length < 20) {
-                return { signal: 'BIG', confidence: 75, reason: 'Statistical fallback' };
-            }
+        // Recovery: instead of blind flipping, use conditional probabilities + ensemble
+        findRecoveryPattern(history) {
+            const recent = history.slice(0, 80).map(h => h.size);
+            // Try order-3 then order-2 conditional
+            const cond3 = this._computeConditionalNext(recent, 3);
+            const cond2 = this._computeConditionalNext(recent, 2);
+            const seq = this._analyzeSequentialPattern(recent.slice(0, 30));
+            const dist = this._analyzeDistribution(recent.slice(0, 50));
 
-            // When we predict wrong, analyze what the market actually produced
-            // and predict the opposite of our last wrong prediction
-            const recentResults = history.slice(0, 30).map(h => h.size);
-            const bigCount = recentResults.filter(s => s === 'BIG').length;
-            const trend = bigCount > 15 ? 'BIG' : 'SMALL';
+            const candidates = [cond3, cond2, seq, dist].filter(Boolean);
+            if (candidates.length === 0) return { signal: 'BIG', confidence: 68, reason: 'Fallback recovery' };
 
-            // After a loss, increase confidence in opposite direction with deep analysis
-            const deepAnalysis = this.detectCurrentPattern(history);
+            // pick highest confidence candidate (prefer conditional)
+            candidates.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+            const top = candidates[0];
 
-            return {
-                signal: trend,
-                confidence: Math.min(95, deepAnalysis.confidence + 8),
-                reason: `Recovery: Pattern correction (${deepAnalysis.reason})`
-            };
+            // slightly boost confidence on recovery decision to avoid immediate flip-flop
+            const boosted = Math.min(98, (top.confidence || 70) + 6);
+            return { signal: top.signal || dist.signal || 'BIG', confidence: boosted, reason: `Recovery:${top.type || ''} ${top.reason || ''}` };
         }
     }
 
@@ -344,17 +266,17 @@
         constructor() {
             this.history = [];
             this.predictions = [];
-            this.maxHistoryLength = 1000;
-            
+            this.maxHistoryLength = 1200;
+
             this.wins = 0;
             this.losses = 0;
             this.consecutiveWins = 0;
             this.consecutiveLosses = 0;
             this.lossRecoveryAttempt = 0;
-            
+
             this.lastPrediction = null;
             this.lastActualResult = null;
-            
+
             this.analyzer = new AdvancedMarketAnalyzer();
             this.currentPattern = 'NEUTRAL';
             this.patternStrength = 0;
@@ -363,43 +285,31 @@
         }
 
         insert(node) {
-            // Check if this is a new period
-            if (this.history.length > 0 && this.history[0].period === node.period) {
-                return false;
-            }
+            if (this.history.length > 0 && this.history[0].period === node.period) return false;
 
-            // Evaluate previous prediction
             if (this.lastPrediction && this.predictions.length > 0) {
                 const lastPred = this.predictions[this.predictions.length - 1];
                 const actual = node.size;
                 this.lastActualResult = actual;
-                
+
                 if (lastPred.signal === actual) {
-                    this.wins++;
-                    this.consecutiveLosses = 0;
-                    this.consecutiveWins++;
-                    this.lossRecoveryAttempt = 0;
+                    this.wins++; this.consecutiveLosses = 0; this.consecutiveWins++; this.lossRecoveryAttempt = 0;
                     postLog(`✅ WIN #${this.wins}: Predicted ${actual} correctly!`);
                 } else {
-                    this.losses++;
-                    this.consecutiveLosses++;
-                    this.consecutiveWins = 0;
-                    this.lossRecoveryAttempt++;
+                    this.losses++; this.consecutiveLosses++; this.consecutiveWins = 0; this.lossRecoveryAttempt++;
                     postLog(`❌ LOSS #${this.losses}: Predicted ${lastPred.signal}, got ${actual}`);
-                    postLog(`🎯 RECOVERY MODE ACTIVATED: Win-after-loss strategy engaged...`);
+                    postLog(`🎯 Recovery triggered (attempt ${this.lossRecoveryAttempt})`);
                 }
             }
 
             this.history.unshift(node);
-            if (this.history.length > this.maxHistoryLength) {
-                this.history.pop();
-            }
-            
+            if (this.history.length > this.maxHistoryLength) this.history.pop();
             return true;
         }
 
         computeSignal(period) {
-            if (this.history.length < 15) {
+            // ensure we're making 30s predictions only (period is next period)
+            if (this.history.length < 12) {
                 const signal = Math.random() > 0.5 ? 'BIG' : 'SMALL';
                 this._savePrediction(period, signal, 60, 'INITIAL_RANDOM');
                 return { signal, confidence: '60.0' };
@@ -409,150 +319,120 @@
             let confidence = 75;
             let reason = 'UNKNOWN';
 
-            // PRIORITY 1: After a loss, use recovery pattern
-            if (this.consecutiveLosses >= 1 && this.lossRecoveryAttempt <= 1) {
-                const recovery = this.analyzer.findRecoveryPattern(this.history, true);
+            // If we recently lost, prefer recovery strategy built on conditional probabilities
+            if (this.consecutiveLosses >= 1 && this.lossRecoveryAttempt <= 2) {
+                const recovery = this.analyzer.findRecoveryPattern(this.history);
                 signal = recovery.signal;
                 confidence = recovery.confidence;
-                reason = `RECOVERY_MODE_L${this.consecutiveLosses}`;
+                reason = `RECOVERY_L${this.consecutiveLosses}`;
                 this.predictionType = 'LOSS_RECOVERY';
-                postLog(`🎯 Recovery signal: ${signal} (Conf: ${confidence.toFixed(0)}%)`);
-            }
-            // PRIORITY 2: Use current market pattern detection
-            else {
+                postLog(`🛡️ Recovery prediction: ${signal} (Conf ${confidence}%) - ${recovery.reason}`);
+            } else {
+                // Normal operation: detect current ensemble pattern
                 const pattern = this.analyzer.detectCurrentPattern(this.history);
-                
-                if (pattern.signal) {
-                    signal = pattern.signal;
-                    confidence = pattern.confidence;
-                    reason = pattern.type;
-                    this.currentPattern = pattern.type;
-                    this.patternStrength = pattern.strength;
-                    this.frequencyMatch = pattern.reason;
-                    this.predictionType = pattern.type;
+                if (pattern && pattern.signal) {
+                    signal = pattern.signal; confidence = pattern.confidence; reason = pattern.type;
+                    this.currentPattern = pattern.type; this.patternStrength = pattern.strength; this.frequencyMatch = pattern.reason; this.predictionType = pattern.type;
 
-                    // Boost confidence for winning streaks
-                    if (this.consecutiveWins > 0) {
-                        confidence = Math.min(95, confidence + (this.consecutiveWins * 2));
-                        postLog(`🔥 Streak boost: ${this.consecutiveWins} consecutive wins`);
+                    // small safety: if lastActual exists and pattern conflicts with a short alternating tendency, use conditional check
+                    if (this.lastActualResult) {
+                        const recent = this.history.slice(0, 30).map(h => h.size);
+                        const cond2 = this.analyzer._computeConditionalNext(recent, 2);
+                        if (cond2 && cond2.signal && cond2.signal !== signal && cond2.confidence > (confidence - 6)) {
+                            // if conditional strongly disagrees, pick conditional to avoid alternating loss
+                            signal = cond2.signal; confidence = Math.max(confidence, cond2.confidence + 4);
+                            reason += ` +COND2_OVERRIDE`;
+                            postLog(`🔁 Conditional override applied: ${cond2.signal} (cond conf ${cond2.confidence})`);
+                        }
                     }
+
+                    // boost confidence for positive streaks
+                    if (this.consecutiveWins > 0) { confidence = Math.min(98, confidence + (this.consecutiveWins * 2)); postLog(`🔥 Streak boost x${this.consecutiveWins}`); }
                 } else {
-                    // Fallback
-                    const bigCount = this.history.slice(0, 30).filter(h => h.size === 'BIG').length;
-                    signal = bigCount > 15 ? 'BIG' : 'SMALL';
-                    confidence = 72;
-                    reason = 'FALLBACK_DISTRIBUTION';
-                    this.predictionType = 'FALLBACK';
+                    // fallback to distribution
+                    const bigCount = this.history.slice(0, 40).filter(h => h.size === 'BIG').length;
+                    signal = bigCount > 20 ? 'BIG' : 'SMALL'; confidence = 72; reason = 'FALLBACK_DISTRIBUTION'; this.predictionType = 'FALLBACK';
                 }
             }
 
-            confidence = Math.max(70, Math.min(95, confidence));
+            // Hard safety: never produce confidence below 65 or above 98
+            confidence = Math.max(65, Math.min(98, confidence));
+
+            // Save the prediction
             this._savePrediction(period, signal, confidence, reason);
-            
             return { signal, confidence: confidence.toFixed(1) };
         }
 
         _savePrediction(period, signal, confidence, reason = '') {
             this.lastPrediction = signal;
-            this.predictions.push({
-                period,
-                signal,
-                confidence: Math.round(confidence),
-                reason,
-                timestamp: Date.now()
-            });
-
-            if (this.predictions.length > this.maxHistoryLength) {
-                this.predictions.shift();
-            }
+            this.predictions.push({ period, signal, confidence: Math.round(confidence), reason, timestamp: Date.now() });
+            if (this.predictions.length > this.maxHistoryLength) this.predictions.shift();
         }
 
-        getWinRate() {
-            const total = this.wins + this.losses;
-            return total === 0 ? 0 : ((this.wins / total) * 100).toFixed(1);
-        }
+        getWinRate() { const total = this.wins + this.losses; return total === 0 ? 0 : ((this.wins / total) * 100).toFixed(1); }
 
         reset() {
-            this.history = [];
-            this.predictions = [];
-            this.wins = 0;
-            this.losses = 0;
-            this.consecutiveLosses = 0;
-            this.consecutiveWins = 0;
-            this.lossRecoveryAttempt = 0;
-            this.currentPattern = 'NEUTRAL';
-            this.patternStrength = 0;
-            this.frequencyMatch = 'NEUTRAL';
-            postLog('🔄 V15 ENGINE RESET: Fresh cycle initialized.');
+            this.history = []; this.predictions = []; this.wins = 0; this.losses = 0; this.consecutiveLosses = 0; this.consecutiveWins = 0; this.lossRecoveryAttempt = 0; this.currentPattern = 'NEUTRAL'; this.patternStrength = 0; this.frequencyMatch = 'NEUTRAL'; postLog('🔄 V15 ENGINE RESET: Fresh cycle initialized.');
         }
     }
 
     // ============================================================
     // RELIABLE WINGO 30S API BRIDGE
+    // Added robust endpoint rotation + optional CORS-proxy fallback
     // ============================================================
     class ReliableWinGoAPI {
         constructor(engine) {
             this.engine = engine;
-            this.isPolling = false;
-            this.retryCount = 0;
-            this.maxRetries = 15;
-            this.pollInterval = 1200;
-            this.consecutiveFailures = 0;
-            this.maxConsecutiveFailures = 3;
+            this.isPolling = false; this.retryCount = 0; this.maxRetries = 20; this.pollInterval = 1200; this.consecutiveFailures = 0; this.maxConsecutiveFailures = 6;
+            this.corsProxies = [
+                'https://api.allorigins.win/raw?url=',
+                'https://thingproxy.freeboard.io/fetch/',
+                'https://cors.bridged.cc/'
+            ];
         }
 
         getEndpoints() {
             const t = Date.now();
             return [
-                // Primary endpoints
                 `https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json?pageSize=50&pageNo=1&_t=${t}`,
                 `https://bet.8bgame.net/WinGo/WinGo_30S/GetHistoryIssuePage.json?pageSize=50&_t=${t}`,
-                
-                // Secondary endpoints  
                 `https://api.bdg88zf.com/api/webapi/GetEmerdList?gameType=1&language=0&pageNo=1&pageSize=100&typeId=2&_t=${t}`,
                 `https://lottery.ubet365.net/api/history/wingo30s?page=1&pageSize=100&_t=${t}`,
-                
-                // Tertiary endpoints
                 `https://wingo.live/api/lottery/history?game=wingo30&page=1&_t=${t}`,
                 `https://api.wingo.zone/history/wingo30s?page=1&limit=50&_t=${t}`
             ];
         }
 
-        async fetchWithTimeout(url, timeoutMs = 6000) {
+        async fetchWithTimeout(url, timeoutMs = 7000) {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-            
             try {
-                const response = await fetch(url, {
-                    signal: controller.signal,
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15',
-                        'Accept-Language': 'en-US,en;q=0.9',
-                        'Cache-Control': 'no-cache'
-                    },
-                    mode: 'cors',
-                    cache: 'no-store'
-                });
-                
+                const resp = await fetch(url, { signal: controller.signal, method: 'GET', headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en-US,en;q=0.9' }, mode: 'cors', cache: 'no-store' });
                 clearTimeout(timeoutId);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                return await response.json();
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                // try parse as JSON, if fails try text
+                const txt = await resp.text();
+                try { return JSON.parse(txt); } catch { try { return JSON.parse(decodeURIComponent(txt)); } catch { return txt; } }
             } catch (err) {
                 clearTimeout(timeoutId);
                 throw err;
             }
         }
 
+        async tryWithProxies(url) {
+            for (const proxy of this.corsProxies) {
+                try {
+                    const proxied = proxy.endsWith('=') ? `${proxy}${encodeURIComponent(url)}` : `${proxy}${url}`;
+                    const data = await this.fetchWithTimeout(proxied, 9000);
+                    if (data) return data;
+                } catch (e) { continue; }
+            }
+            return null;
+        }
+
         parseWinGoData(json) {
             let items = [];
-            
-            // Multiple parsing strategies for different API formats
+            if (!json) return [];
             if (json?.data?.list) items = json.data.list;
             else if (json?.data?.records) items = json.data.records;
             else if (json?.data?.histories) items = json.data.histories;
@@ -561,27 +441,14 @@
             else if (json?.histories) items = json.histories;
             else if (Array.isArray(json)) items = json;
             else {
-                // Try to find array in nested structure
-                for (const key in json) {
-                    if (Array.isArray(json[key]) && json[key].length > 5) {
-                        items = json[key];
-                        break;
-                    }
-                }
+                for (const key in json) { if (Array.isArray(json[key]) && json[key].length > 3) { items = json[key]; break; } }
             }
 
             const results = [];
-
             for (const item of items) {
                 try {
-                    // Handle various field name variations
-                    const period = item.issueNumber || item.issue || item.periodNumber || 
-                                   item.period || item.expect_code || item.id || item.number || 
-                                   item.draw_id || item.issue_number || item.sequence || item.code;
-                    
+                    const period = item.issueNumber || item.issue || item.periodNumber || item.period || item.expect_code || item.id || item.number || item.draw_id || item.issue_number || item.sequence || item.code;
                     let num = null;
-                    
-                    // Parse result number with multiple fallbacks
                     if (item.number !== undefined) num = parseInt(item.number);
                     else if (item.openNumber !== undefined) num = parseInt(item.openNumber);
                     else if (item.result !== undefined) num = parseInt(item.result);
@@ -592,210 +459,95 @@
                     else if (item.last_code !== undefined) num = parseInt(item.last_code);
                     else if (item.result_num !== undefined) num = parseInt(item.result_num);
 
-                    // Validate period and number
-                    if (period !== undefined && period !== null && 
-                        !isNaN(num) && num >= 0 && num <= 9) {
-                        
-                        results.push({
-                            period: String(period),
-                            number: num,
-                            size: num >= 5 ? 'BIG' : 'SMALL'
-                        });
+                    // sometimes open_code is "1,2,3,4,5" - take last digit
+                    if (!isFinite(num) && typeof item.open_code === 'string') {
+                        const parts = item.open_code.split(/[,-]/).map(p => p.trim()).filter(Boolean);
+                        const last = parts[parts.length - 1];
+                        num = parseInt(last);
                     }
-                } catch (e) {
-                    continue;
-                }
-            }
 
+                    if (period !== undefined && period !== null && !isNaN(num) && num >= 0 && num <= 9) {
+                        results.push({ period: String(period), number: num, size: num >= 5 ? 'BIG' : 'SMALL' });
+                    }
+                } catch (e) { continue; }
+            }
             return results;
         }
 
         async poll() {
-            if (this.isPolling) return;
-            this.isPolling = true;
-
-            const endpoints = this.getEndpoints();
-            let rawData = null;
-            let usedEndpoint = null;
-
+            if (this.isPolling) return; this.isPolling = true;
+            const endpoints = this.getEndpoints(); let rawData = null; let usedEndpoint = null;
             for (const url of endpoints) {
-                try {
-                    rawData = await this.fetchWithTimeout(url);
-                    if (rawData) {
-                        usedEndpoint = url;
-                        break;
-                    }
-                } catch (err) {
-                    continue;
-                }
+                try { rawData = await this.fetchWithTimeout(url); if (rawData) { usedEndpoint = url; break; } }
+                catch (err) { try { rawData = await this.tryWithProxies(url); if (rawData) { usedEndpoint = url; break; } } catch{} }
             }
 
             if (rawData) {
                 const parsed = this.parseWinGoData(rawData);
-                
                 if (parsed.length > 0) {
-                    this.consecutiveFailures = 0;
-                    this.retryCount = 0;
-                    this.updateStatus(true);
-                    this.processRecords(parsed);
-                    postLog(`✓ API connected: ${parsed.length} records received`);
-                } else {
-                    this._handleAPIFailure();
-                }
-            } else {
-                this._handleAPIFailure();
-            }
+                    this.consecutiveFailures = 0; this.retryCount = 0; this.updateStatus(true); this.processRecords(parsed); postLog(`✓ API connected: ${parsed.length} records (from ${usedEndpoint || 'proxy'})`);
+                } else { this._handleAPIFailure(); }
+            } else { this._handleAPIFailure(); }
 
             this.isPolling = false;
         }
 
         _handleAPIFailure() {
-            this.consecutiveFailures++;
-            this.retryCount++;
-            
-            if (this.consecutiveFailures <= this.maxConsecutiveFailures) {
-                this.updateStatus(false);
-                postLog(`⚠️ Connection unstable - retry ${this.retryCount}/${this.maxRetries}`);
-            } else {
-                this.updateStatus(false);
-                postLog(`⚠️ Multiple failures - checking endpoints...`);
-            }
+            this.consecutiveFailures++; this.retryCount++;
+            if (this.consecutiveFailures <= this.maxConsecutiveFailures) { this.updateStatus(false); postLog(`⚠️ Connection unstable - retry ${this.retryCount}`); }
+            else { this.updateStatus(false); postLog(`⚠️ Multiple failures - endpoints may be blocked`); }
         }
 
         processRecords(records) {
-            records.sort((a, b) => {
-                try {
-                    return Number(BigInt(b.period) - BigInt(a.period));
-                } catch {
-                    return String(b.period).localeCompare(String(a.period));
-                }
-            });
-
-            const latest = records[0];
-            if (!latest) return;
-
-            const updated = this.engine.insert(latest);
-            
+            records.sort((a, b) => { try { return Number(BigInt(b.period) - BigInt(a.period)); } catch { return String(b.period).localeCompare(String(a.period)); } });
+            const latest = records[0]; if (!latest) return; const updated = this.engine.insert(latest);
             if (updated) {
-                let nextPeriod;
-                try {
-                    nextPeriod = String(BigInt(latest.period) + 1n);
-                } catch {
-                    nextPeriod = String(parseInt(latest.period) + 1);
-                }
-
-                const result = this.engine.computeSignal(nextPeriod);
-                this.renderUI(nextPeriod, result.signal, result.confidence);
+                let nextPeriod; try { nextPeriod = String(BigInt(latest.period) + 1n); } catch { nextPeriod = String(parseInt(latest.period) + 1); }
+                const result = this.engine.computeSignal(nextPeriod); this.renderUI(nextPeriod, result.signal, result.confidence);
             }
         }
 
         renderUI(period, signal, confidence) {
-            document.getElementById('periodDisplay').innerHTML = `⏳ TARGET: #${period.slice(-8)}`;
-            
-            const displayEl = document.getElementById('predictionDisplay');
-            displayEl.innerText = signal;
-            displayEl.className = `prediction-value ${signal.toLowerCase()}`;
-
+            document.getElementById('periodDisplay').innerHTML = `⏳ TARGET: #${String(period).slice(-8)}`;
+            const displayEl = document.getElementById('predictionDisplay'); displayEl.innerText = signal; displayEl.className = `prediction-value ${String(signal).toLowerCase()}`;
             document.getElementById('winRateDisplay').innerText = `${this.engine.getWinRate()}%`;
-            document.getElementById('winsDisplay').innerText = this.engine.wins;
-            document.getElementById('lossesDisplay').innerText = this.engine.losses;
-            document.getElementById('confDisplay').innerText = `${Math.round(confidence)}%`;
-
+            document.getElementById('winsDisplay').innerText = this.engine.wins; document.getElementById('lossesDisplay').innerText = this.engine.losses; document.getElementById('confDisplay').innerText = `${Math.round(confidence)}%`;
             document.getElementById('confidenceBar').style.width = `${Math.min(confidence, 100)}%`;
-
-            const total = this.engine.wins + this.engine.losses;
-            if (total > 0) {
-                const accuracy = ((this.engine.wins / total) * 100).toFixed(1);
-                document.getElementById('accuracyDisplay').innerText = `${accuracy}%`;
-            }
-
-            let streak = this.engine.consecutiveWins > 0 ? `🔥 W${this.engine.consecutiveWins}` : 
-                         this.engine.consecutiveLosses > 0 ? `❄️ L${this.engine.consecutiveLosses}` : 'NEUTRAL';
-            document.getElementById('streakDisplay').innerText = streak;
-
-            document.getElementById('patternModeDisplay').innerText = this.engine.currentPattern;
-            document.getElementById('trendScoreDisplay').innerText = `${Math.round(this.engine.patternStrength)}%`;
-            document.getElementById('cycleStatusDisplay').innerText = this.engine.frequencyMatch;
-            document.getElementById('predTypeDisplay').innerText = this.engine.predictionType;
-
+            const total = this.engine.wins + this.engine.losses; if (total > 0) { const accuracy = ((this.engine.wins / total) * 100).toFixed(1); document.getElementById('accuracyDisplay').innerText = `${accuracy}%`; }
+            let streak = this.engine.consecutiveWins > 0 ? `🔥 W${this.engine.consecutiveWins}` : this.engine.consecutiveLosses > 0 ? `❄️ L${this.engine.consecutiveLosses}` : 'NEUTRAL'; document.getElementById('streakDisplay').innerText = streak;
+            document.getElementById('patternModeDisplay').innerText = this.engine.currentPattern; document.getElementById('trendScoreDisplay').innerText = `${Math.round(this.engine.patternStrength)}%`; document.getElementById('cycleStatusDisplay').innerText = this.engine.frequencyMatch; document.getElementById('predTypeDisplay').innerText = this.engine.predictionType;
             const recentHistory = this.engine.history.slice(0, 16).map(d => d.size.charAt(0)).join(' · ');
             document.getElementById('patternDisplay').innerHTML = `◈ ${recentHistory || 'SYNCING'} ◈`;
 
-            const indicator = document.getElementById('modelIndicator');
-            indicator.innerHTML = '';
-            const models = ['TREND', 'FREQ', 'SEQ', 'DIST', 'RECOV', 'STREAK', 'CONF', 'WIN'];
-            
-            for (let i = 0; i < models.length; i++) {
-                const div = document.createElement('div');
-                div.className = 'mini-model';
-                div.innerText = models[i];
-                
-                const indicators = [
-                    this.engine.patternStrength > 60,
-                    this.engine.frequencyMatch.includes('appears'),
-                    this.engine.currentPattern.includes('SEQUENCE'),
-                    this.engine.currentPattern.includes('DISTRIBUTION'),
-                    this.engine.lossRecoveryAttempt > 0,
-                    this.engine.consecutiveWins > 0,
-                    confidence > 85,
-                    this.engine.wins > 0
-                ];
-                
-                if (indicators[i]) div.classList.add('active');
-                indicator.appendChild(div);
+            const indicator = document.getElementById('modelIndicator'); indicator.innerHTML = '';
+            const models = ['COND3','COND2','TREND','SEQ','DIST','RECOV','CONF','WIN'];
+            for (let i=0;i<models.length;i++){
+                const div = document.createElement('div'); div.className='mini-model'; div.innerText = models[i];
+                const indicators = [ this.engine.patternStrength > 60, this.engine.patternStrength > 50, this.engine.currentPattern.includes('TREND'), this.engine.currentPattern.includes('SEQUENCE'), this.engine.currentPattern.includes('DISTRIBUTION'), this.engine.lossRecoveryAttempt>0, confidence>85, this.engine.wins>0 ];
+                if (indicators[i]) div.classList.add('active'); indicator.appendChild(div);
             }
         }
 
         updateStatus(online) {
-            const dot = document.getElementById('statusDot');
-            const txt = document.getElementById('statusText');
-            
-            if (online) {
-                dot.className = 'status-dot connected';
-                txt.innerText = 'LIVE';
-                txt.style.color = '#00ff66';
-            } else {
-                dot.className = 'status-dot scanning';
-                txt.innerText = 'RETRY';
-                txt.style.color = '#ffaa00';
-            }
+            const dot = document.getElementById('statusDot'); const txt = document.getElementById('statusText');
+            if (online) { dot.className = 'status-dot connected'; txt.innerText = 'LIVE'; txt.style.color = '#00ff66'; }
+            else { dot.className = 'status-dot scanning'; txt.innerText = 'RETRY'; txt.style.color = '#ffaa00'; }
         }
 
-        start() {
-            postLog('🚀 Initializing market analysis...');
-            this.poll();
-            setInterval(() => this.poll(), this.pollInterval);
-        }
+        start() { postLog('🚀 Initializing market analysis...'); this.poll(); setInterval(() => this.poll(), this.pollInterval); }
     }
 
     function postLog(msg) {
-        const consoleEl = document.getElementById('logConsole');
-        const timestamp = new Date().toLocaleTimeString();
-        consoleEl.innerHTML += `<br>[${timestamp}] ${msg}`;
-        consoleEl.scrollTop = consoleEl.scrollHeight;
-        
-        // Keep only last 50 logs
-        const lines = consoleEl.innerHTML.split('<br>');
-        if (lines.length > 60) {
-            consoleEl.innerHTML = lines.slice(-50).join('<br>');
-        }
+        const consoleEl = document.getElementById('logConsole'); const timestamp = new Date().toLocaleTimeString(); consoleEl.innerHTML += `<br>[${timestamp}] ${msg}`; consoleEl.scrollTop = consoleEl.scrollHeight;
+        const lines = consoleEl.innerHTML.split('<br>'); if (lines.length > 60) consoleEl.innerHTML = lines.slice(-50).join('<br>');
     }
 
-    // Initialize engine and API
-    const engine = new AdvancedEngineV15();
-    const api = new ReliableWinGoAPI(engine);
+    // Initialize
+    const engine = new AdvancedEngineV15(); const api = new ReliableWinGoAPI(engine);
 
-    document.getElementById('resetMemoryBtn').addEventListener('click', () => {
-        engine.reset();
-        document.getElementById('logConsole').innerHTML = '[SYS] QUANT-SHIELD V15 PRO ENGINE ONLINE<br>[SYS] PATTERN RECOGNITION ACTIVE<br>[SYS] MARKET DATA STREAMING<br>[SYS] AWAITING FIRST RESULT...';
-        postLog('✨ System reset - ready for new cycle.');
-        api.consecutiveFailures = 0;
-        api.poll();
-    });
+    document.getElementById('resetMemoryBtn').addEventListener('click', () => { engine.reset(); document.getElementById('logConsole').innerHTML = '[SYS] QUANT-SHIELD V15 PRO ENGINE ONLINE<br>[SYS] PATTERN RECOGNITION ACTIVE<br>[SYS] MARKET DATA STREAMING<br>[SYS] AWAITING FIRST RESULT...'; postLog('✨ System reset - ready for new cycle.'); api.consecutiveFailures = 0; api.poll(); });
 
-    window.addEventListener('DOMContentLoaded', () => {
-        api.start();
-    });
+    window.addEventListener('DOMContentLoaded', () => { api.start(); });
 </script>
 </body>
 </html>
